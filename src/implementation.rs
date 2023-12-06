@@ -12,12 +12,11 @@ use dioxus_core::{Element, Mutations, Scope, ScopeState, VirtualDom};
 use std::{cell::RefCell, mem::transmute, rc::Rc};
 
 pub fn tick_dioxus_ui(world: &mut World) {
-    let mut command_queue = CommandQueue::default();
-
     let apply_mutations = |mutations: Mutations, root_entity: Entity| {
         todo!("Modify bevy_ui entities based on mutations");
     };
 
+    let mut command_queue = CommandQueue::default();
     let ecs_context = unsafe {
         EcsContext {
             world_read_only: transmute(&world),
