@@ -15,35 +15,34 @@ pub fn tick_dioxus_ui(world: &mut World) {
     unsafe {
         let world_cell = world.as_unsafe_world_cell();
 
-        let apply_mutations = |mutations: Mutations, bevy_ui_root: Entity| {
+        let apply_mutations = |mutations: Mutations, root_entity: Entity| {
             todo!("Modify bevy_ui entities based on mutations");
         };
 
         let mut command_queue = CommandQueue::default();
+        let ecs_context = EcsContext {
+            world_read_only: transmute(world_cell.world()),
+            commands: Rc::new(RefCell::new(Commands::new(
+                transmute(&mut command_queue),
+                transmute(world_cell.world()),
+            ))),
+        };
 
-        for mut dioxus_ui_root in world_cell
+        for (root_entity, mut dioxus_ui_root) in world_cell
             .world_mut()
-            .query::<&mut DioxusUiRoot>()
+            .query::<(Entity, &mut DioxusUiRoot)>()
             .iter_mut(world_cell.world_mut())
         {
             dioxus_ui_root
                 .virtual_dom
                 .get()
                 .base_scope()
-                .provide_context(EcsContext {
-                    world_read_only: transmute(world_cell.world()),
-                    commands: Rc::new(RefCell::new(Commands::new(
-                        transmute(&mut command_queue),
-                        transmute(world_cell.world()),
-                    ))),
-                });
+                .provide_context(ecs_context.clone());
 
-            let bevy_ui_root = dioxus_ui_root.root_entity.unwrap_or_else(|| {
-                // TODO: Spawn bevy_ui_root as a child of dioxus_ui_root
-                let bevy_ui_root = world_cell.world_mut().spawn(()).id();
-                apply_mutations(dioxus_ui_root.virtual_dom.get().rebuild(), bevy_ui_root);
-                bevy_ui_root
-            });
+            if !dioxus_ui_root.initial_build {
+                apply_mutations(dioxus_ui_root.virtual_dom.get().rebuild(), root_entity);
+                dioxus_ui_root.initial_build = true;
+            }
 
             // TODO: Handle events from winit
             // dioxus_ui_root
@@ -53,7 +52,7 @@ pub fn tick_dioxus_ui(world: &mut World) {
 
             apply_mutations(
                 dioxus_ui_root.virtual_dom.get().render_immediate(),
-                bevy_ui_root,
+                root_entity,
             );
         }
 
