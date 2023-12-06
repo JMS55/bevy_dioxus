@@ -1,0 +1,8 @@
+[package]
+name = "bevy_dioxus"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bevy = "0.12"
+dioxus-core = "0.4"
