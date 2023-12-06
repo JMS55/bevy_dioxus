@@ -6,7 +6,7 @@ use bevy::{
     ecs::component::Component,
 };
 
-pub use self::implementation::{use_commands, use_res, use_world};
+pub use self::implementation::{use_commands, use_resource, use_world};
 pub use dioxus_core::{Element, Scope};
 
 pub struct DioxusUiPlugin;

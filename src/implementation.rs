@@ -68,7 +68,7 @@ pub fn use_world<'a>(cx: &'a ScopeState) -> &'a World {
         .world_read_only
 }
 
-pub fn use_res<'a, T: Resource>(cx: &'a ScopeState) -> &'a T {
+pub fn use_resource<'a, T: Resource>(cx: &'a ScopeState) -> &'a T {
     cx.consume_context::<EcsContext>()
         .expect("Must be used from a dioxus component within a DioxusUiRoot bevy component")
         .world_read_only
