@@ -4,11 +4,10 @@ use self::implementation::{tick_dioxus_ui, VirtualDomUnsafe};
 use bevy::{
     app::{App, Plugin, Update},
     ecs::{component::Component, entity::Entity},
-    utils::synccell::SyncCell,
 };
-use dioxus_core::{Element, Scope, VirtualDom};
 
 pub use self::implementation::{use_commands, use_res, use_world};
+pub use dioxus_core::{Element, Scope};
 
 pub struct DioxusUiPlugin;
 
@@ -27,7 +26,7 @@ pub struct DioxusUiRoot {
 impl DioxusUiRoot {
     pub fn new(root_component: fn(Scope) -> Element) -> Self {
         Self {
-            virtual_dom: VirtualDomUnsafe(SyncCell::new(VirtualDom::new(root_component))),
+            virtual_dom: VirtualDomUnsafe::new(root_component),
             root_entity: None,
         }
     }

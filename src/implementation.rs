@@ -8,7 +8,7 @@ use bevy::{
     prelude::{Deref, DerefMut},
     utils::synccell::SyncCell,
 };
-use dioxus_core::{Mutations, ScopeState, VirtualDom};
+use dioxus_core::{Element, Mutations, Scope, ScopeState, VirtualDom};
 use std::{cell::RefCell, mem::transmute, rc::Rc};
 
 pub fn tick_dioxus_ui(world: &mut World) {
@@ -104,3 +104,9 @@ pub fn use_commands<'a>(cx: &'a ScopeState) -> Rc<RefCell<Commands<'a, 'a>>> {
 #[derive(Deref, DerefMut)]
 pub struct VirtualDomUnsafe(pub SyncCell<VirtualDom>);
 unsafe impl Send for VirtualDomUnsafe {}
+
+impl VirtualDomUnsafe {
+    pub fn new(root_component: fn(Scope) -> Element) -> Self {
+        Self(SyncCell::new(VirtualDom::new(root_component)))
+    }
+}
