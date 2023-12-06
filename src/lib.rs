@@ -8,6 +8,8 @@ use bevy::{
 };
 use dioxus_core::{Element, Scope, VirtualDom};
 
+pub use self::implementation::{use_commands, use_res, use_world};
+
 pub struct DioxusUiPlugin;
 
 impl Plugin for DioxusUiPlugin {

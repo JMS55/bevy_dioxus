@@ -2,14 +2,14 @@ use super::DioxusUiRoot;
 use bevy::{
     ecs::{
         entity::Entity,
-        system::{CommandQueue, Commands},
+        system::{CommandQueue, Commands, Resource},
         world::World,
     },
     prelude::{Deref, DerefMut},
     utils::synccell::SyncCell,
 };
-use dioxus_core::{Mutations, VirtualDom};
-use std::{cell::RefCell, rc::Rc};
+use dioxus_core::{Mutations, ScopeState, VirtualDom};
+use std::{cell::RefCell, mem::transmute, rc::Rc};
 
 pub fn tick_dioxus_ui(world: &mut World) {
     unsafe {
@@ -31,10 +31,10 @@ pub fn tick_dioxus_ui(world: &mut World) {
                 .get()
                 .base_scope()
                 .provide_context(EcsContext {
-                    world_read_only: std::mem::transmute(world_cell.world()),
+                    world_read_only: transmute(world_cell.world()),
                     commands: Rc::new(RefCell::new(Commands::new(
-                        std::mem::transmute(&mut command_queue),
-                        std::mem::transmute(world_cell.world()),
+                        transmute(&mut command_queue),
+                        transmute(world_cell.world()),
                     ))),
                 });
 
@@ -70,3 +70,37 @@ struct EcsContext {
 #[derive(Deref, DerefMut)]
 pub struct VirtualDomUnsafe(pub SyncCell<VirtualDom>);
 unsafe impl Send for VirtualDomUnsafe {}
+
+pub fn use_world<'a>(cx: &'a ScopeState) -> &'a World {
+    cx.consume_context::<EcsContext>()
+        .expect("Must be used from a dioxus component within a DioxusUiRoot bevy component")
+        .world_read_only
+}
+
+pub fn use_res<'a, T: Resource>(cx: &'a ScopeState) -> &'a T {
+    cx.consume_context::<EcsContext>()
+        .expect("Must be used from a dioxus component within a DioxusUiRoot bevy component")
+        .world_read_only
+        .resource()
+}
+
+// TODO
+// pub fn use_query<'a, Q: ReadOnlyWorldQuery, F: ReadOnlyWorldQuery>(
+//     cx: &'a ScopeState,
+// ) -> QueryIter<'a, '_, Q, F> {
+//     let world = &mut cx
+//         .consume_context::<EcsContext>()
+//         .expect("Must be used from a dioxus component within a DioxusUiRoot bevy component")
+//         .world_read_only;
+//     world.query_filtered::<Q, F>().iter(&world)
+// }
+
+pub fn use_commands<'a>(cx: &'a ScopeState) -> Rc<RefCell<Commands<'a, 'a>>> {
+    unsafe {
+        transmute(Rc::clone(
+            &cx.consume_context::<EcsContext>()
+                .expect("Must be used from a dioxus component within a DioxusUiRoot bevy component")
+                .commands,
+        ))
+    }
+}
