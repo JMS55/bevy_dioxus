@@ -67,10 +67,6 @@ struct EcsContext {
     commands: Rc<RefCell<Commands<'static, 'static>>>,
 }
 
-#[derive(Deref, DerefMut)]
-pub struct VirtualDomUnsafe(pub SyncCell<VirtualDom>);
-unsafe impl Send for VirtualDomUnsafe {}
-
 pub fn use_world<'a>(cx: &'a ScopeState) -> &'a World {
     cx.consume_context::<EcsContext>()
         .expect("Must be used from a dioxus component within a DioxusUiRoot bevy component")
@@ -104,3 +100,7 @@ pub fn use_commands<'a>(cx: &'a ScopeState) -> Rc<RefCell<Commands<'a, 'a>>> {
         ))
     }
 }
+
+#[derive(Deref, DerefMut)]
+pub struct VirtualDomUnsafe(pub SyncCell<VirtualDom>);
+unsafe impl Send for VirtualDomUnsafe {}
