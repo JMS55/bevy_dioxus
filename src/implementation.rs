@@ -30,27 +30,25 @@ pub fn tick_dioxus_ui(world: &mut World) {
     for (root_entity, mut dioxus_ui_root) in
         world.query::<(Entity, &mut DioxusUiRoot)>().iter_mut(world)
     {
-        dioxus_ui_root
-            .virtual_dom
-            .get()
+        let DioxusUiRoot {
+            virtual_dom,
+            initial_build,
+        } = &mut *dioxus_ui_root;
+        let virtual_dom = virtual_dom.get();
+
+        virtual_dom
             .base_scope()
             .provide_context(ecs_context.clone());
 
-        if !dioxus_ui_root.initial_build {
-            apply_mutations(dioxus_ui_root.virtual_dom.get().rebuild(), root_entity);
-            dioxus_ui_root.initial_build = true;
+        if !*initial_build {
+            apply_mutations(virtual_dom.rebuild(), root_entity);
+            *initial_build = true;
         }
 
         // TODO: Handle events from winit
-        // dioxus_ui_root
-        //     .virtual_dom
-        //     .get()
-        //     .handle_event(todo!(), todo!(), todo!(), todo!());
+        // virtual_dom.handle_event(todo!(), todo!(), todo!(), todo!());
 
-        apply_mutations(
-            dioxus_ui_root.virtual_dom.get().render_immediate(),
-            root_entity,
-        );
+        apply_mutations(virtual_dom.render_immediate(), root_entity);
     }
 
     command_queue.apply(world);
