@@ -21,6 +21,7 @@ impl DeferredSystem {
     }
 
     pub fn schedule(&self) {
+        // TODO: This is not sound. Pointer to world won't be valid across frames.
         unsafe { &mut *self.world }
             .resource_mut::<DeferredSystemRunQueue>()
             .0
@@ -35,6 +36,7 @@ pub struct OnDropUnregisterDeferredSystem(pub DeferredSystem);
 
 impl Drop for OnDropUnregisterDeferredSystem {
     fn drop(&mut self) {
+        // TODO: This is not sound. Pointer to world won't be valid across frames.
         unsafe { &mut *self.0.world }
             .remove_system(self.0.id)
             .unwrap();
