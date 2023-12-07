@@ -4,6 +4,9 @@ use bevy::ecs::{
 };
 use std::sync::Arc;
 
+// TODO: Can probably make the value stored in the hook the only one that has a Drop unregistering the system,
+// and then make the type that lets you schedule the system Copy
+
 #[derive(Clone)]
 pub struct DeferredSystem(pub(crate) Arc<DeferredSystemInner>);
 
