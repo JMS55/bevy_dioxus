@@ -2,16 +2,10 @@ use bevy::ecs::{
     system::{IntoSystem, Resource, SystemId},
     world::World,
 };
-use std::sync::Arc;
 
-// TODO: Can probably make the value stored in the hook the only one that has a Drop unregistering the system,
-// and then make the type that lets you schedule the system Copy
-
-#[derive(Clone)]
-pub struct DeferredSystem(pub(crate) Arc<DeferredSystemInner>);
-
-pub(crate) struct DeferredSystemInner {
-    pub id: SystemId,
+#[derive(Clone, Copy)]
+pub struct DeferredSystem {
+    id: SystemId,
     world: *mut World,
 }
 
@@ -20,28 +14,32 @@ impl DeferredSystem {
     where
         S: IntoSystem<(), (), ()> + 'static,
     {
-        Self(Arc::new(DeferredSystemInner {
+        Self {
             id: world.register_system(system),
             world,
-        }))
+        }
     }
 
     pub fn schedule(&self) {
-        unsafe { &mut *self.0.world }
+        unsafe { &mut *self.world }
             .resource_mut::<DeferredSystemRunQueue>()
             .0
-            .push(self.clone());
+            .push(self.id);
     }
 }
 
-impl Drop for DeferredSystemInner {
+unsafe impl Send for DeferredSystem {}
+unsafe impl Sync for DeferredSystem {}
+
+pub struct OnDropUnregisterDeferredSystem(pub DeferredSystem);
+
+impl Drop for OnDropUnregisterDeferredSystem {
     fn drop(&mut self) {
-        unsafe { &mut *self.world }.remove_system(self.id).unwrap();
+        unsafe { &mut *self.0.world }
+            .remove_system(self.0.id)
+            .unwrap();
     }
 }
-
-unsafe impl Send for DeferredSystemInner {}
-unsafe impl Sync for DeferredSystemInner {}
 
 #[derive(Resource, Default)]
-pub struct DeferredSystemRunQueue(pub Vec<DeferredSystem>);
+pub struct DeferredSystemRunQueue(pub Vec<SystemId>);
