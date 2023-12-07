@@ -22,6 +22,8 @@ pub fn tick_dioxus_ui(world: &mut World) {
         let DioxusUiRoot {
             virtual_dom,
             needs_rebuild,
+            element_id_to_bevy_ui_entity,
+            templates,
         } = &mut *dioxus_ui_root;
         let virtual_dom = virtual_dom.get();
 
@@ -30,18 +32,26 @@ pub fn tick_dioxus_ui(world: &mut World) {
             .provide_context(EcsContext { world: world_ptr });
 
         if *needs_rebuild {
-            apply_mutations(virtual_dom.rebuild(), root_entity, unsafe {
-                world_cell.world_mut()
-            });
+            apply_mutations(
+                virtual_dom.rebuild(),
+                element_id_to_bevy_ui_entity,
+                templates,
+                root_entity,
+                unsafe { world_cell.world_mut() },
+            );
             *needs_rebuild = false;
         }
 
         // TODO: Handle events from winit
         // virtual_dom.handle_event(todo!(), todo!(), todo!(), todo!());
 
-        apply_mutations(virtual_dom.render_immediate(), root_entity, unsafe {
-            world_cell.world_mut()
-        });
+        apply_mutations(
+            virtual_dom.render_immediate(),
+            element_id_to_bevy_ui_entity,
+            templates,
+            root_entity,
+            unsafe { world_cell.world_mut() },
+        );
     }
 
     for system_id in mem::take(&mut world.resource_mut::<DeferredSystemRunQueue>().0) {
