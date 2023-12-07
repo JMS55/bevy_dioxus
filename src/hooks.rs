@@ -1,4 +1,7 @@
-use crate::{deferred_system::DeferredSystem, tick::EcsContext};
+use crate::{
+    deferred_system::{new_deferred_system, DeferredSystem},
+    tick::EcsContext,
+};
 use bevy::ecs::{
     system::{IntoSystem, Resource},
     world::World,
@@ -26,7 +29,7 @@ impl DioxusUiHooks for ScopeState {
     where
         S: IntoSystem<(), (), ()> + 'static,
     {
-        self.use_hook(|| DeferredSystem::new(system, EcsContext::get_world(self)))
+        self.use_hook(|| new_deferred_system(system, EcsContext::get_world(self)))
             .0
     }
 }
