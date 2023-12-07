@@ -9,6 +9,7 @@ use bevy::{
 use dioxus_core::{Element, Scope, ScopeState, VirtualDom};
 use std::mem;
 
+// TODO: This is not sound. Can't borrow the world while iterating over DioxusUiRoots.
 pub fn tick_dioxus_ui(world: &mut World) {
     let world_ptr: *mut World = world;
     let world_cell = world.as_unsafe_world_cell();
