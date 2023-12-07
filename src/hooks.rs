@@ -14,11 +14,11 @@ pub trait DioxusUiHooks {
 
     fn use_resource<'a, T: Resource>(&'a self) -> &'a T;
 
-    fn use_query<'a, Q>(&'a self) -> DioxusUiQuery<Q, ()>
+    fn use_query<'a, Q>(&'a self) -> DioxusUiQuery<'a, Q, ()>
     where
         Q: ReadOnlyWorldQueryData;
 
-    fn use_query_filtered<'a, Q, F>(&'a self) -> DioxusUiQuery<Q, F>
+    fn use_query_filtered<'a, Q, F>(&'a self) -> DioxusUiQuery<'a, Q, F>
     where
         Q: ReadOnlyWorldQueryData,
         F: WorldQueryFilter;
@@ -37,14 +37,14 @@ impl DioxusUiHooks for ScopeState {
         EcsContext::get_world(self).resource()
     }
 
-    fn use_query<'a, Q>(&'a self) -> DioxusUiQuery<Q, ()>
+    fn use_query<'a, Q>(&'a self) -> DioxusUiQuery<'a, Q, ()>
     where
         Q: ReadOnlyWorldQueryData,
     {
         Self::use_query_filtered(self)
     }
 
-    fn use_query_filtered<'a, Q, F>(&'a self) -> DioxusUiQuery<Q, F>
+    fn use_query_filtered<'a, Q, F>(&'a self) -> DioxusUiQuery<'a, Q, F>
     where
         Q: ReadOnlyWorldQueryData,
         F: WorldQueryFilter,
