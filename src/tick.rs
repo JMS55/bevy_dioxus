@@ -4,6 +4,7 @@ use crate::{
 use bevy::{
     ecs::{
         entity::Entity,
+        system::{CommandQueue, Commands},
         world::{Mut, World},
     },
     prelude::{Deref, DerefMut},
@@ -12,10 +13,11 @@ use bevy::{
 use dioxus_core::{Element, Scope, ScopeState, VirtualDom};
 use std::{mem, sync::Arc};
 
-// TODO: This is not sound. Can't borrow the world while iterating over DioxusUiRoots.
 pub fn tick_dioxus_ui(world: &mut World) {
     let world_ptr: *mut World = world;
     let world_cell = world.as_unsafe_world_cell();
+    let mut command_queue = CommandQueue::default();
+    let mut commands = Commands::new_from_entities(&mut command_queue, world_cell.entities());
 
     for (root_entity, mut dioxus_ui_root) in unsafe {
         world_cell
@@ -35,28 +37,30 @@ pub fn tick_dioxus_ui(world: &mut World) {
             .base_scope()
             .provide_context(EcsContext { world: world_ptr });
 
+        // TODO: Handle events from winit
+        // virtual_dom.handle_event(todo!(), todo!(), todo!(), todo!());
+
         if *needs_rebuild {
             apply_mutations(
                 virtual_dom.rebuild(),
                 element_id_to_bevy_ui_entity,
                 templates,
                 root_entity,
-                unsafe { world_cell.world_mut() },
+                &mut commands,
             );
             *needs_rebuild = false;
         }
-
-        // TODO: Handle events from winit
-        // virtual_dom.handle_event(todo!(), todo!(), todo!(), todo!());
 
         apply_mutations(
             virtual_dom.render_immediate(),
             element_id_to_bevy_ui_entity,
             templates,
             root_entity,
-            unsafe { world_cell.world_mut() },
+            &mut commands,
         );
     }
+
+    command_queue.apply(world);
 
     for system_id in mem::take(&mut *world.resource_mut::<DeferredSystemRegistry>().run_queue) {
         let _ = world.run_system(system_id);

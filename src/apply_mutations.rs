@@ -1,8 +1,7 @@
 use crate::bsn::Bsn;
 use bevy::{
-    ecs::{entity::Entity, world::World},
-    hierarchy::{BuildWorldChildren, DespawnRecursiveExt},
-    text::Text,
+    ecs::{entity::Entity, system::Commands},
+    hierarchy::{BuildChildren, DespawnRecursiveExt},
     ui::node_bundles::TextBundle,
     utils::HashMap,
 };
@@ -13,7 +12,7 @@ pub fn apply_mutations(
     element_id_to_bevy_ui_entity: &mut HashMap<ElementId, Entity>,
     templates: &mut HashMap<String, Bsn>,
     root_entity: Entity,
-    world: &mut World,
+    commands: &mut Commands,
 ) {
     for new_template in mutations.templates {
         templates.insert(new_template.name.to_owned(), todo!());
@@ -26,17 +25,17 @@ pub fn apply_mutations(
     for edit in mutations.edits {
         match edit {
             Mutation::AppendChildren { id, m } => {
-                let mut parent = world.entity_mut(map[&id]);
+                let mut parent = commands.entity(map[&id]);
                 for _ in 0..m {
                     parent.add_child(stack.pop().unwrap());
                 }
             }
             Mutation::AssignId { path, id } => todo!(),
             Mutation::CreatePlaceholder { id } => {
-                map.insert(id, world.spawn(()).id());
+                map.insert(id, commands.spawn(()).id());
             }
             Mutation::CreateTextNode { value, id } => {
-                map.insert(id, world.spawn(TextBundle::from(value)).id());
+                map.insert(id, commands.spawn(TextBundle::from(value)).id());
             }
             Mutation::HydrateText { path, value, id } => todo!(),
             Mutation::LoadTemplate { name, index, id } => todo!(),
@@ -50,19 +49,12 @@ pub fn apply_mutations(
                 id,
                 ns,
             } => todo!(),
-            Mutation::SetText { value, id } => {
-                world
-                    .entity_mut(map[&id])
-                    .get_mut::<Text>()
-                    .unwrap()
-                    .sections[0]
-                    .value = value.to_owned();
-            }
+            Mutation::SetText { value, id } => todo!(),
             Mutation::NewEventListener { name, id } => todo!(),
             Mutation::RemoveEventListener { name, id } => todo!(),
             Mutation::Remove { id } => {
-                world
-                    .entity_mut(map.remove(&id).unwrap())
+                commands
+                    .entity(map.remove(&id).unwrap())
                     .despawn_recursive();
             }
             Mutation::PushRoot { id } => stack.push(map[&id]),
