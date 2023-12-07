@@ -6,7 +6,7 @@ use bevy::ecs::{
 #[derive(Clone, Copy)]
 pub struct DeferredSystem {
     id: SystemId,
-    world: *mut World,
+    run_queue: *mut Vec<SystemId>,
 }
 
 impl DeferredSystem {
@@ -15,33 +15,18 @@ impl DeferredSystem {
         S: IntoSystem<(), (), ()> + 'static,
     {
         Self {
-            id: world.register_system(system),
-            world,
+            id: world.register_system(system), // TODO: We never unregister the system
+            run_queue: Box::as_mut(&mut world.resource_mut::<DeferredSystemRunQueue>().0),
         }
     }
 
     pub fn schedule(&self) {
-        // TODO: This is not sound. Pointer to world won't be valid across frames.
-        unsafe { &mut *self.world }
-            .resource_mut::<DeferredSystemRunQueue>()
-            .0
-            .push(self.id);
+        unsafe { &mut *self.run_queue }.push(self.id);
     }
 }
 
 unsafe impl Send for DeferredSystem {}
 unsafe impl Sync for DeferredSystem {}
 
-pub struct OnDropUnregisterDeferredSystem(pub DeferredSystem);
-
-impl Drop for OnDropUnregisterDeferredSystem {
-    fn drop(&mut self) {
-        // TODO: This is not sound. Pointer to world won't be valid across frames.
-        unsafe { &mut *self.0.world }
-            .remove_system(self.0.id)
-            .unwrap();
-    }
-}
-
-#[derive(Resource, Default)]
-pub struct DeferredSystemRunQueue(pub Vec<SystemId>);
+#[derive(Resource, Clone, Default)]
+pub struct DeferredSystemRunQueue(pub Box<Vec<SystemId>>);

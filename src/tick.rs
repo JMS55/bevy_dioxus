@@ -55,7 +55,7 @@ pub fn tick_dioxus_ui(world: &mut World) {
         );
     }
 
-    for system_id in mem::take(&mut world.resource_mut::<DeferredSystemRunQueue>().0) {
+    for system_id in mem::take(&mut *world.resource_mut::<DeferredSystemRunQueue>().0) {
         world.run_system(system_id).unwrap();
     }
 }
