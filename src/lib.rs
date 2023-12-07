@@ -16,7 +16,10 @@ use bevy::{
 };
 use dioxus_core::ElementId;
 
-pub use self::{deferred_system::DeferredSystem, hooks::DioxusUiHooks};
+pub use self::{
+    deferred_system::DeferredSystem,
+    hooks::{DioxusUiHooks, DioxusUiQuery},
+};
 pub use dioxus_core::{Element, Scope};
 
 pub struct DioxusUiPlugin;

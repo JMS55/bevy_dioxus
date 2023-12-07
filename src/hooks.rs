@@ -3,14 +3,26 @@ use crate::{
     tick::EcsContext,
 };
 use bevy::ecs::{
-    system::{IntoSystem, Resource},
-    world::World,
+    query::{QueryState, ReadOnlyWorldQueryData, WorldQueryFilter},
+    system::{IntoSystem, Query, Resource},
+    world::{unsafe_world_cell::UnsafeWorldCell, World},
 };
 use dioxus_core::ScopeState;
 
 pub trait DioxusUiHooks {
     fn use_world<'a>(&'a self) -> &'a World;
+
     fn use_resource<'a, T: Resource>(&'a self) -> &'a T;
+
+    fn use_query<'a, Q>(&'a self) -> DioxusUiQuery<Q, ()>
+    where
+        Q: ReadOnlyWorldQueryData;
+
+    fn use_query_filtered<'a, Q, F>(&'a self) -> DioxusUiQuery<Q, F>
+    where
+        Q: ReadOnlyWorldQueryData,
+        F: WorldQueryFilter;
+
     fn use_system<S>(&self, system: S) -> DeferredSystem
     where
         S: IntoSystem<(), (), ()> + 'static;
@@ -25,6 +37,25 @@ impl DioxusUiHooks for ScopeState {
         EcsContext::get_world(self).resource()
     }
 
+    fn use_query<'a, Q>(&'a self) -> DioxusUiQuery<Q, ()>
+    where
+        Q: ReadOnlyWorldQueryData,
+    {
+        Self::use_query_filtered(self)
+    }
+
+    fn use_query_filtered<'a, Q, F>(&'a self) -> DioxusUiQuery<Q, F>
+    where
+        Q: ReadOnlyWorldQueryData,
+        F: WorldQueryFilter,
+    {
+        let world = EcsContext::get_world(self);
+        DioxusUiQuery {
+            query_state: QueryState::new(world),
+            world_cell: world.as_unsafe_world_cell(),
+        }
+    }
+
     fn use_system<S>(&self, system: S) -> DeferredSystem
     where
         S: IntoSystem<(), (), ()> + 'static,
@@ -34,12 +65,25 @@ impl DioxusUiHooks for ScopeState {
     }
 }
 
-// TODO
-// pub fn use_query<'a, Q, F>(cx: &'a ScopeState) -> QueryIter<'a, '_, Q, F>
-// where
-//     Q: ReadOnlyWorldQuery,
-//     F: ReadOnlyWorldQuery,
-// {
-//     let world = EcsContext::get_world(cx);
-//     world.query_filtered::<Q, F>().iter(&world)
-// }
+pub struct DioxusUiQuery<'a, Q: ReadOnlyWorldQueryData, F: WorldQueryFilter> {
+    query_state: QueryState<Q, F>,
+    world_cell: UnsafeWorldCell<'a>,
+}
+
+impl<'a, Q, F> DioxusUiQuery<'a, Q, F>
+where
+    Q: ReadOnlyWorldQueryData,
+    F: WorldQueryFilter,
+{
+    pub fn query(&self) -> Query<Q, F> {
+        unsafe {
+            Query::new(
+                self.world_cell,
+                &self.query_state,
+                self.world_cell.last_change_tick(),
+                self.world_cell.change_tick(),
+                true,
+            )
+        }
+    }
+}
