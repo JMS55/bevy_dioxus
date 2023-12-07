@@ -1,13 +1,16 @@
 use crate::{
-    apply_mutations::apply_mutations, deferred_system::DeferredSystemRunQueue, DioxusUiRoot,
+    apply_mutations::apply_mutations, deferred_system::DeferredSystemRegistry, DioxusUiRoot,
 };
 use bevy::{
-    ecs::{entity::Entity, world::World},
+    ecs::{
+        entity::Entity,
+        world::{Mut, World},
+    },
     prelude::{Deref, DerefMut},
     utils::synccell::SyncCell,
 };
 use dioxus_core::{Element, Scope, ScopeState, VirtualDom};
-use std::mem;
+use std::{mem, sync::Arc};
 
 // TODO: This is not sound. Can't borrow the world while iterating over DioxusUiRoots.
 pub fn tick_dioxus_ui(world: &mut World) {
@@ -55,9 +58,19 @@ pub fn tick_dioxus_ui(world: &mut World) {
         );
     }
 
-    for system_id in mem::take(&mut *world.resource_mut::<DeferredSystemRunQueue>().0) {
-        world.run_system(system_id).unwrap();
+    for system_id in mem::take(&mut *world.resource_mut::<DeferredSystemRegistry>().run_queue) {
+        let _ = world.run_system(system_id);
     }
+
+    world.resource_scope(|world, mut system_registry: Mut<DeferredSystemRegistry>| {
+        system_registry.ref_counts.retain(|system_id, ref_count| {
+            let cleanup = Arc::strong_count(ref_count) == 1;
+            if cleanup {
+                world.remove_system(*system_id).unwrap();
+            }
+            !cleanup
+        });
+    });
 }
 
 #[derive(Clone)]

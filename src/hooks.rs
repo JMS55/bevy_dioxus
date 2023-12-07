@@ -26,7 +26,8 @@ impl DioxusUiHooks for ScopeState {
     where
         S: IntoSystem<(), (), ()> + 'static,
     {
-        *self.use_hook(|| DeferredSystem::new(system, EcsContext::get_world(self)))
+        self.use_hook(|| DeferredSystem::new(system, EcsContext::get_world(self)))
+            .0
     }
 }
 

@@ -6,7 +6,7 @@ mod tick;
 
 use self::{
     bsn::Bsn,
-    deferred_system::DeferredSystemRunQueue,
+    deferred_system::DeferredSystemRegistry,
     tick::{tick_dioxus_ui, VirtualDomUnsafe},
 };
 use bevy::{
@@ -23,7 +23,7 @@ pub struct DioxusUiPlugin;
 
 impl Plugin for DioxusUiPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<DeferredSystemRunQueue>()
+        app.init_resource::<DeferredSystemRegistry>()
             .add_systems(Update, tick_dioxus_ui);
     }
 }
