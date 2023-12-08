@@ -64,7 +64,9 @@ pub fn apply_mutations(
                         value
                             .as_any()
                             .downcast_ref::<Arc<dyn Reflect>>()
-                            .expect("Attribute value does not impl Reflect"),
+                            .expect(&format!(
+                            "Encountered an attribute with name {name} that did not impl Reflect"
+                        )),
                     )),
                     BorrowedAttributeValue::None => None,
                     _ => unreachable!("Should not be used by bevy_dioxus elements"),
@@ -96,7 +98,7 @@ impl Command for SetReflectedComponent {
             let reflected_component = type_registry
                 .get_with_type_path(&self.component_type_path)
                 .expect(&format!(
-                    "Encountered an attribute with name {} that was not registered",
+                    "Encountered an attribute with name {} that was not registered for reflection",
                     self.component_type_path
                 ))
                 .data::<ReflectComponent>()
@@ -107,7 +109,7 @@ impl Command for SetReflectedComponent {
 
             let entity_mut = &mut world.entity_mut(self.entity);
             match self.component_value {
-                Some(value) => reflected_component.apply_or_insert(entity_mut, &*value),
+                Some(value) => reflected_component.insert(entity_mut, &*value),
                 None => reflected_component.remove(entity_mut),
             }
         });
