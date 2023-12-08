@@ -1,16 +1,22 @@
-use crate::bsn::Bsn;
 use bevy::{
-    ecs::{entity::Entity, system::Commands},
+    ecs::{
+        entity::Entity,
+        reflect::{AppTypeRegistry, ReflectComponent},
+        system::{Command, Commands},
+        world::Mut,
+    },
     hierarchy::{BuildChildren, DespawnRecursiveExt},
-    ui::node_bundles::TextBundle,
+    prelude::World,
+    reflect::Reflect,
     utils::HashMap,
 };
-use dioxus_core::{ElementId, Mutation, Mutations};
+use dioxus_core::{BorrowedAttributeValue, ElementId, Mutation, Mutations};
+use std::sync::Arc;
 
 pub fn apply_mutations(
     mutations: Mutations,
     element_id_to_bevy_ui_entity: &mut HashMap<ElementId, Entity>,
-    templates: &mut HashMap<String, Bsn>,
+    templates: &mut HashMap<String, ()>,
     root_entity: Entity,
     commands: &mut Commands,
 ) {
@@ -34,10 +40,12 @@ pub fn apply_mutations(
             Mutation::CreatePlaceholder { id } => {
                 map.insert(id, commands.spawn(()).id());
             }
-            Mutation::CreateTextNode { value, id } => {
-                map.insert(id, commands.spawn(TextBundle::from(value)).id());
+            Mutation::CreateTextNode { .. } => {
+                unreachable!("Should not be used by bevy_dioxus elements");
             }
-            Mutation::HydrateText { path, value, id } => todo!(),
+            Mutation::HydrateText { .. } => {
+                unreachable!("Should not be used by bevy_dioxus elements");
+            }
             Mutation::LoadTemplate { name, index, id } => todo!(),
             Mutation::ReplaceWith { id, m } => todo!(),
             Mutation::ReplacePlaceholder { path, m } => todo!(),
@@ -47,9 +55,22 @@ pub fn apply_mutations(
                 name,
                 value,
                 id,
-                ns,
-            } => todo!(),
-            Mutation::SetText { value, id } => todo!(),
+                ns: _,
+            } => commands.add(SetReflectedComponent {
+                entity: map[&id],
+                component_type_path: name.to_owned(),
+                component_value: match value {
+                    BorrowedAttributeValue::Any(value) => Some(Arc::clone(
+                        value
+                            .as_any()
+                            .downcast_ref::<Arc<dyn Reflect>>()
+                            .expect("Attribute value does not impl Reflect"),
+                    )),
+                    BorrowedAttributeValue::None => None,
+                    _ => unreachable!("Should not be used by bevy_dioxus elements"),
+                },
+            }),
+            Mutation::SetText { .. } => unreachable!("Should not be used by bevy_dioxus elements"),
             Mutation::NewEventListener { name, id } => todo!(),
             Mutation::RemoveEventListener { name, id } => todo!(),
             Mutation::Remove { id } => {
@@ -59,5 +80,36 @@ pub fn apply_mutations(
             }
             Mutation::PushRoot { id } => stack.push(map[&id]),
         }
+    }
+}
+
+struct SetReflectedComponent {
+    entity: Entity,
+    component_type_path: String,
+    component_value: Option<Arc<dyn Reflect>>,
+}
+
+impl Command for SetReflectedComponent {
+    fn apply(self, world: &mut World) {
+        world.resource_scope(|world: &mut World, type_registry: Mut<AppTypeRegistry>| {
+            let type_registry = type_registry.read();
+            let reflected_component = type_registry
+                .get_with_type_path(&self.component_type_path)
+                .expect(&format!(
+                    "Encountered an attribute with name {} that was not registered",
+                    self.component_type_path
+                ))
+                .data::<ReflectComponent>()
+                .expect(&format!(
+                    "Encountered an attribute with name {} that did not reflect Component",
+                    self.component_type_path
+                ));
+
+            let entity_mut = &mut world.entity_mut(self.entity);
+            match self.component_value {
+                Some(value) => reflected_component.apply_or_insert(entity_mut, &*value),
+                None => reflected_component.remove(entity_mut),
+            }
+        });
     }
 }

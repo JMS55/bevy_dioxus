@@ -1,11 +1,9 @@
 mod apply_mutations;
-mod bsn;
 mod deferred_system;
 mod hooks;
 mod tick;
 
 use self::{
-    bsn::Bsn,
     deferred_system::DeferredSystemRegistry,
     tick::{tick_dioxus_ui, VirtualDomUnsafe},
 };
@@ -35,7 +33,7 @@ impl Plugin for DioxusUiPlugin {
 pub struct DioxusUiRoot {
     virtual_dom: VirtualDomUnsafe,
     element_id_to_bevy_ui_entity: HashMap<ElementId, Entity>,
-    templates: HashMap<String, Bsn>,
+    templates: HashMap<String, ()>,
     needs_rebuild: bool,
 }
 
