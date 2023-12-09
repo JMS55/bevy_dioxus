@@ -28,6 +28,7 @@ pub trait DioxusUiHooks {
         S: IntoSystem<(), (), ()> + 'static;
 }
 
+// TODO: Hooks need to schedule future updates
 impl DioxusUiHooks for ScopeState {
     fn use_world<'a>(&'a self) -> &'a World {
         EcsContext::get_world(self)
