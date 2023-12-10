@@ -24,8 +24,8 @@ pub fn apply_mutations(
 
     let map = element_id_to_bevy_ui_entity;
     map.insert(ElementId(0), root_entity);
-
     let mut stack = vec![root_entity];
+
     for edit in mutations.edits {
         match edit {
             Mutation::AppendChildren { id, m } => {
@@ -36,7 +36,12 @@ pub fn apply_mutations(
             }
             Mutation::AssignId { path, id } => todo!(),
             Mutation::CreatePlaceholder { id } => todo!(),
-            Mutation::CreateTextNode { value, id } => todo!(),
+            Mutation::CreateTextNode { value, id } => {
+                let entity = BevyTemplateNode::from_dioxus(&TemplateNode::Text { text: value })
+                    .spawn(commands);
+                map.insert(id, entity);
+                stack.push(entity);
+            }
             Mutation::HydrateText { path, value, id } => todo!(),
             Mutation::LoadTemplate { name, index, id } => {
                 let entity = templates[name].roots[index].spawn(commands);
@@ -101,10 +106,13 @@ impl BevyTemplateNode {
                     children: children.iter().map(Self::from_dioxus).collect(),
                 }
             }
+
             TemplateNode::Text { text } => {
                 Self::TextNode(Text::from_section(*text, TextStyle::default()))
             }
+
             TemplateNode::Dynamic { id } => todo!(),
+
             TemplateNode::DynamicText { id } => todo!(),
         }
     }
@@ -122,6 +130,7 @@ impl BevyTemplateNode {
                     .push_children(&children)
                     .id()
             }
+
             Self::TextNode(text) => commands
                 .spawn(TextBundle {
                     text: text.clone(),
