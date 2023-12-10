@@ -3,7 +3,7 @@ use crate::{
     tick::EcsContext,
 };
 use bevy::ecs::{
-    query::{QueryState, ReadOnlyWorldQueryData, WorldQueryFilter},
+    query::{QueryState, ReadOnlyWorldQuery},
     system::{IntoSystem, Query, Resource},
     world::{unsafe_world_cell::UnsafeWorldCell, World},
 };
@@ -16,12 +16,12 @@ pub trait DioxusUiHooks {
 
     fn use_query<'a, Q>(&'a self) -> DioxusUiQuery<'a, Q, ()>
     where
-        Q: ReadOnlyWorldQueryData;
+        Q: ReadOnlyWorldQuery;
 
     fn use_query_filtered<'a, Q, F>(&'a self) -> DioxusUiQuery<'a, Q, F>
     where
-        Q: ReadOnlyWorldQueryData,
-        F: WorldQueryFilter;
+        Q: ReadOnlyWorldQuery,
+        F: ReadOnlyWorldQuery;
 
     fn use_system<S>(&self, system: S) -> DeferredSystem
     where
@@ -40,15 +40,15 @@ impl DioxusUiHooks for ScopeState {
 
     fn use_query<'a, Q>(&'a self) -> DioxusUiQuery<'a, Q, ()>
     where
-        Q: ReadOnlyWorldQueryData,
+        Q: ReadOnlyWorldQuery,
     {
         Self::use_query_filtered(self)
     }
 
     fn use_query_filtered<'a, Q, F>(&'a self) -> DioxusUiQuery<'a, Q, F>
     where
-        Q: ReadOnlyWorldQueryData,
-        F: WorldQueryFilter,
+        Q: ReadOnlyWorldQuery,
+        F: ReadOnlyWorldQuery,
     {
         let world = EcsContext::get_world(self);
         DioxusUiQuery {
@@ -66,15 +66,15 @@ impl DioxusUiHooks for ScopeState {
     }
 }
 
-pub struct DioxusUiQuery<'a, Q: ReadOnlyWorldQueryData, F: WorldQueryFilter> {
+pub struct DioxusUiQuery<'a, Q: ReadOnlyWorldQuery, F: ReadOnlyWorldQuery> {
     query_state: QueryState<Q, F>,
     world_cell: UnsafeWorldCell<'a>,
 }
 
 impl<'a, Q, F> DioxusUiQuery<'a, Q, F>
 where
-    Q: ReadOnlyWorldQueryData,
-    F: WorldQueryFilter,
+    Q: ReadOnlyWorldQuery,
+    F: ReadOnlyWorldQuery,
 {
     pub fn query(&self) -> Query<Q, F> {
         unsafe {

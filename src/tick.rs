@@ -29,6 +29,7 @@ pub fn tick_dioxus_ui(world: &mut World) {
             virtual_dom,
             hierarchy,
             element_id_to_bevy_ui_entity,
+            event_listeners,
             templates,
             needs_rebuild,
         } = &mut *dioxus_ui_root;
@@ -46,6 +47,7 @@ pub fn tick_dioxus_ui(world: &mut World) {
                 virtual_dom.rebuild(),
                 hierarchy,
                 element_id_to_bevy_ui_entity,
+                event_listeners,
                 templates,
                 root_entity,
                 &mut commands,
@@ -57,6 +59,7 @@ pub fn tick_dioxus_ui(world: &mut World) {
             virtual_dom.render_immediate(),
             hierarchy,
             element_id_to_bevy_ui_entity,
+            event_listeners,
             templates,
             root_entity,
             &mut commands,

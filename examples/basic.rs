@@ -5,11 +5,14 @@ use bevy::{
     ui::node_bundles::NodeBundle,
     DefaultPlugins,
 };
-use bevy_dioxus::{dioxus::prelude::*, DioxusUiBundle, DioxusUiPlugin, DioxusUiRoot};
+use bevy_dioxus::{
+    bevy_mod_picking::DefaultPickingPlugins, dioxus::prelude::*, DioxusUiBundle, DioxusUiPlugin,
+    DioxusUiRoot,
+};
 
 fn main() {
     App::new()
-        .add_plugins((DefaultPlugins, DioxusUiPlugin))
+        .add_plugins((DefaultPlugins, DioxusUiPlugin, DefaultPickingPlugins))
         .add_systems(Startup, |mut commands: Commands| {
             commands.spawn(DioxusUiBundle {
                 dioxus_ui_root: DioxusUiRoot::new(ui_root),

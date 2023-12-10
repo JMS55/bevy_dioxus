@@ -3,15 +3,19 @@ use bevy::{
     hierarchy::BuildChildren,
     prelude::default,
     text::{Text, TextStyle},
-    ui::node_bundles::{NodeBundle, TextBundle},
-    utils::HashMap,
+    ui::{
+        node_bundles::{NodeBundle, TextBundle},
+        *,
+    },
+    utils::{HashMap, HashSet},
 };
-use dioxus::core::{ElementId, Mutation, Mutations, Template, TemplateNode};
+use dioxus::core::{ElementId, Mutation, Mutations, Template, TemplateAttribute, TemplateNode};
 
 pub fn apply_mutations(
     mutations: Mutations,
     hierarchy: &mut HashMap<(Entity, u8), Entity>,
     element_id_to_bevy_ui_entity: &mut HashMap<ElementId, Entity>,
+    event_listeners: &mut HashSet<(Event, ElementId)>,
     templates: &mut HashMap<String, BevyTemplate>,
     root_entity: Entity,
     commands: &mut Commands,
@@ -23,14 +27,13 @@ pub fn apply_mutations(
         );
     }
 
-    let map = element_id_to_bevy_ui_entity;
-    map.insert(ElementId(0), root_entity);
+    element_id_to_bevy_ui_entity.insert(ElementId(0), root_entity);
     let mut stack = vec![root_entity];
 
     for edit in mutations.edits {
         match edit {
             Mutation::AppendChildren { id, m } => {
-                let mut parent = commands.entity(map[&id]);
+                let mut parent = commands.entity(element_id_to_bevy_ui_entity[&id]);
                 let parent_existing_children_count =
                     hierarchy.keys().filter(|(p, _)| *p == parent.id()).count();
                 for i in 1..=m {
@@ -47,7 +50,7 @@ pub fn apply_mutations(
             Mutation::CreateTextNode { value, id } => {
                 let entity = BevyTemplateNode::from_dioxus(&TemplateNode::Text { text: value })
                     .spawn(commands, hierarchy);
-                map.insert(id, entity);
+                element_id_to_bevy_ui_entity.insert(id, entity);
                 stack.push(entity);
             }
             Mutation::HydrateText { path, value, id } => {
@@ -58,11 +61,11 @@ pub fn apply_mutations(
                 commands
                     .entity(entity)
                     .insert(Text::from_section(value, TextStyle::default()));
-                map.insert(id, entity);
+                element_id_to_bevy_ui_entity.insert(id, entity);
             }
             Mutation::LoadTemplate { name, index, id } => {
                 let entity = templates[name].roots[index].spawn(commands, hierarchy);
-                map.insert(id, entity);
+                element_id_to_bevy_ui_entity.insert(id, entity);
                 stack.push(entity);
             }
             Mutation::ReplaceWith { id, m } => todo!(),
@@ -76,10 +79,14 @@ pub fn apply_mutations(
                 ns,
             } => todo!(),
             Mutation::SetText { value, id } => todo!(),
-            Mutation::NewEventListener { name, id } => todo!(),
-            Mutation::RemoveEventListener { name, id } => todo!(),
+            Mutation::NewEventListener { name, id } => {
+                event_listeners.insert((Event::from_dioxus(name), id));
+            }
+            Mutation::RemoveEventListener { name, id } => {
+                event_listeners.remove(&(Event::from_dioxus(name), id));
+            }
             Mutation::Remove { id } => todo!(),
-            Mutation::PushRoot { id } => todo!(),
+            Mutation::PushRoot { id } => stack.push(element_id_to_bevy_ui_entity[&id]),
         }
     }
 }
@@ -89,7 +96,7 @@ pub struct BevyTemplate {
 }
 
 enum BevyTemplateNode {
-    Node { children: Box<[Self]> },
+    Node { style: Style, children: Box<[Self]> },
     TextNode(Text),
 }
 
@@ -111,7 +118,7 @@ impl BevyTemplateNode {
             TemplateNode::Element {
                 tag,
                 namespace: _,
-                attrs: _,
+                attrs,
                 children,
             } => {
                 if *tag != "div" {
@@ -120,6 +127,7 @@ impl BevyTemplateNode {
                     );
                 }
                 Self::Node {
+                    style: parse_style_attributes(attrs),
                     children: children.iter().map(Self::from_dioxus).collect(),
                 }
             }
@@ -127,6 +135,7 @@ impl BevyTemplateNode {
                 Self::TextNode(Text::from_section(*text, TextStyle::default()))
             }
             TemplateNode::Dynamic { id: _ } => Self::Node {
+                style: Style::default(),
                 children: Box::new([]),
             },
             TemplateNode::DynamicText { id: _ } => {
@@ -141,14 +150,17 @@ impl BevyTemplateNode {
         hierarchy: &mut HashMap<(Entity, u8), Entity>,
     ) -> Entity {
         match self {
-            BevyTemplateNode::Node { children } => {
+            BevyTemplateNode::Node { style, children } => {
                 // TODO: Can probably use with_children() instead
                 let children = children
                     .iter()
                     .map(|child| child.spawn(commands, hierarchy))
                     .collect::<Box<[_]>>();
                 let parent = commands
-                    .spawn(NodeBundle::default())
+                    .spawn(NodeBundle {
+                        style: style.clone(),
+                        ..default()
+                    })
                     .push_children(&children)
                     .id();
                 for (i, child) in children.iter().enumerate() {
@@ -164,4 +176,41 @@ impl BevyTemplateNode {
                 .id(),
         }
     }
+}
+
+#[derive(PartialEq, Eq, Hash, Clone, Copy)]
+pub enum Event {
+    Click,
+}
+
+impl Event {
+    pub fn from_dioxus(event: &str) -> Self {
+        match event {
+            "click" => Self::Click,
+            _ => panic!("Encountered unsupported bevy_dioxus event `{event}`."),
+        }
+    }
+}
+
+fn parse_style_attributes(attributes: &[TemplateAttribute]) -> Style {
+    let mut style = Style::default();
+    for attribute in attributes {
+        if let TemplateAttribute::Static {
+            name,
+            value,
+            namespace: _,
+        } = attribute
+        {
+            // TODO: The rest of Style
+            match (*name, *value) {
+                ("display", "flex") => style.display = Display::Flex,
+                ("display", "grid") => style.display = Display::Grid,
+                ("display", "none") => style.display = Display::None,
+                ("position", "relative") => style.position_type = PositionType::Relative,
+                ("position", "absolute") => style.position_type = PositionType::Absolute,
+                _ => panic!("Encountered unsupported bevy_dioxus attribute `{name}: {value}`."),
+            }
+        }
+    }
+    style
 }
