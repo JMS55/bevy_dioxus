@@ -1,27 +1,26 @@
 use bevy::{
-    ecs::{
-        entity::Entity,
-        reflect::{AppTypeRegistry, ReflectComponent},
-        system::{Command, Commands},
-        world::Mut,
-    },
-    hierarchy::{BuildChildren, DespawnRecursiveExt},
-    prelude::World,
-    reflect::Reflect,
+    ecs::{entity::Entity, system::Commands},
+    hierarchy::BuildChildren,
+    prelude::default,
+    text::{Text, TextStyle},
+    ui::node_bundles::TextBundle,
     utils::HashMap,
 };
-use dioxus_core::{BorrowedAttributeValue, ElementId, Mutation, Mutations};
-use std::sync::Arc;
+use dioxus::core::{ElementId, Mutation, Mutations, Template, TemplateNode};
+use smallvec::SmallVec;
 
 pub fn apply_mutations(
     mutations: Mutations,
     element_id_to_bevy_ui_entity: &mut HashMap<ElementId, Entity>,
-    templates: &mut HashMap<String, ()>,
+    templates: &mut HashMap<String, BevyTemplate>,
     root_entity: Entity,
     commands: &mut Commands,
 ) {
     for new_template in mutations.templates {
-        templates.insert(new_template.name.to_owned(), todo!());
+        templates.insert(
+            new_template.name.to_owned(),
+            BevyTemplate::from_dioxus(&new_template),
+        );
     }
 
     let map = element_id_to_bevy_ui_entity;
@@ -37,16 +36,14 @@ pub fn apply_mutations(
                 }
             }
             Mutation::AssignId { path, id } => todo!(),
-            Mutation::CreatePlaceholder { id } => {
-                map.insert(id, commands.spawn(()).id());
+            Mutation::CreatePlaceholder { id } => todo!(),
+            Mutation::CreateTextNode { value, id } => todo!(),
+            Mutation::HydrateText { path, value, id } => todo!(),
+            Mutation::LoadTemplate { name, index, id } => {
+                let entity = templates[name].roots[index].spawn(commands);
+                map.insert(id, entity);
+                stack.push(entity);
             }
-            Mutation::CreateTextNode { .. } => {
-                unreachable!("Should not be used by bevy_dioxus elements");
-            }
-            Mutation::HydrateText { .. } => {
-                unreachable!("Should not be used by bevy_dioxus elements");
-            }
-            Mutation::LoadTemplate { name, index, id } => todo!(),
             Mutation::ReplaceWith { id, m } => todo!(),
             Mutation::ReplacePlaceholder { path, m } => todo!(),
             Mutation::InsertAfter { id, m } => todo!(),
@@ -55,63 +52,61 @@ pub fn apply_mutations(
                 name,
                 value,
                 id,
-                ns: _,
-            } => commands.add(SetReflectedComponent {
-                entity: map[&id],
-                component_type_path: name.to_owned(),
-                component_value: match value {
-                    BorrowedAttributeValue::Any(value) => Some(Arc::clone(
-                        value
-                            .as_any()
-                            .downcast_ref::<Arc<dyn Reflect>>()
-                            .expect(&format!(
-                            "Encountered an attribute with name {name} that did not impl Reflect"
-                        )),
-                    )),
-                    BorrowedAttributeValue::None => None,
-                    _ => unreachable!("Should not be used by bevy_dioxus elements"),
-                },
-            }),
-            Mutation::SetText { .. } => unreachable!("Should not be used by bevy_dioxus elements"),
+                ns,
+            } => todo!(),
+            Mutation::SetText { value, id } => todo!(),
             Mutation::NewEventListener { name, id } => todo!(),
             Mutation::RemoveEventListener { name, id } => todo!(),
-            Mutation::Remove { id } => {
-                commands
-                    .entity(map.remove(&id).unwrap())
-                    .despawn_recursive();
-            }
-            Mutation::PushRoot { id } => stack.push(map[&id]),
+            Mutation::Remove { id } => todo!(),
+            Mutation::PushRoot { id } => todo!(),
         }
     }
 }
 
-struct SetReflectedComponent {
-    entity: Entity,
-    component_type_path: String,
-    component_value: Option<Arc<dyn Reflect>>,
+pub struct BevyTemplate {
+    roots: SmallVec<[BevyTemplateNode; 4]>,
 }
 
-impl Command for SetReflectedComponent {
-    fn apply(self, world: &mut World) {
-        world.resource_scope(|world: &mut World, type_registry: Mut<AppTypeRegistry>| {
-            let type_registry = type_registry.read();
-            let reflected_component = type_registry
-                .get_with_type_path(&self.component_type_path)
-                .expect(&format!(
-                    "Encountered an attribute with name {} that was not registered for reflection",
-                    self.component_type_path
-                ))
-                .data::<ReflectComponent>()
-                .expect(&format!(
-                    "Encountered an attribute with name {} that did not reflect Component",
-                    self.component_type_path
-                ));
+enum BevyTemplateNode {
+    Text(Text),
+}
 
-            let entity_mut = &mut world.entity_mut(self.entity);
-            match self.component_value {
-                Some(value) => reflected_component.insert(entity_mut, &*value),
-                None => reflected_component.remove(entity_mut),
+impl BevyTemplate {
+    fn from_dioxus(template: &Template) -> Self {
+        Self {
+            roots: template
+                .roots
+                .iter()
+                .map(BevyTemplateNode::from_dioxus)
+                .collect(),
+        }
+    }
+}
+
+impl BevyTemplateNode {
+    fn from_dioxus(node: &TemplateNode) -> Self {
+        match node {
+            TemplateNode::Element {
+                tag,
+                namespace,
+                attrs,
+                children,
+            } => todo!(),
+            TemplateNode::Text { text } => {
+                Self::Text(Text::from_section(*text, TextStyle::default()))
             }
-        });
+            TemplateNode::Dynamic { id } => todo!(),
+            TemplateNode::DynamicText { id } => todo!(),
+        }
+    }
+
+    fn spawn(&self, commands: &mut Commands) -> Entity {
+        match self {
+            Self::Text(text) => commands.spawn(TextBundle {
+                text: text.clone(),
+                ..default()
+            }),
+        }
+        .id()
     }
 }

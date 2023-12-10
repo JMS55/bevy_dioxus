@@ -4,21 +4,23 @@ mod hooks;
 mod tick;
 
 use self::{
+    apply_mutations::BevyTemplate,
     deferred_system::DeferredSystemRegistry,
     tick::{tick_dioxus_ui, VirtualDomUnsafe},
 };
 use bevy::{
     app::{App, Plugin, Update},
-    ecs::{component::Component, entity::Entity},
+    ecs::{bundle::Bundle, component::Component, entity::Entity},
+    ui::node_bundles::NodeBundle,
     utils::HashMap,
 };
-use dioxus_core::ElementId;
+use dioxus::core::{Element, ElementId, Scope};
 
 pub use self::{
     deferred_system::DeferredSystem,
     hooks::{DioxusUiHooks, DioxusUiQuery},
 };
-pub use dioxus_core::{Element, Scope};
+pub use dioxus;
 
 pub struct DioxusUiPlugin;
 
@@ -29,11 +31,17 @@ impl Plugin for DioxusUiPlugin {
     }
 }
 
+#[derive(Bundle)]
+pub struct DioxusUiBundle {
+    pub dioxus_ui_root: DioxusUiRoot,
+    pub node_bundle: NodeBundle,
+}
+
 #[derive(Component)]
 pub struct DioxusUiRoot {
     virtual_dom: VirtualDomUnsafe,
     element_id_to_bevy_ui_entity: HashMap<ElementId, Entity>,
-    templates: HashMap<String, ()>,
+    templates: HashMap<String, BevyTemplate>,
     needs_rebuild: bool,
 }
 

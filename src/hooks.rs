@@ -7,7 +7,7 @@ use bevy::ecs::{
     system::{IntoSystem, Query, Resource},
     world::{unsafe_world_cell::UnsafeWorldCell, World},
 };
-use dioxus_core::ScopeState;
+use dioxus::core::ScopeState;
 
 pub trait DioxusUiHooks {
     fn use_world<'a>(&'a self) -> &'a World;

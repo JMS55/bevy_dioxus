@@ -10,7 +10,7 @@ use bevy::{
     prelude::{Deref, DerefMut},
     utils::synccell::SyncCell,
 };
-use dioxus_core::{Element, Scope, ScopeState, VirtualDom};
+use dioxus::core::{Element, Scope, ScopeState, VirtualDom};
 use std::{mem, sync::Arc};
 
 pub fn tick_dioxus_ui(world: &mut World) {
