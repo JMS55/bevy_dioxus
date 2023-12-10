@@ -6,7 +6,6 @@ edition = "2021"
 [dependencies]
 bevy = { git = "https://github.com/JMS55/bevy", branch = "query_new" }
 dioxus = "0.4"
-smallvec = "1.0"
 
 [[example]]
 name = "basic"

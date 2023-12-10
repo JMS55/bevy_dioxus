@@ -3,11 +3,10 @@ use bevy::{
     hierarchy::BuildChildren,
     prelude::default,
     text::{Text, TextStyle},
-    ui::node_bundles::TextBundle,
+    ui::node_bundles::{NodeBundle, TextBundle},
     utils::HashMap,
 };
 use dioxus::core::{ElementId, Mutation, Mutations, Template, TemplateNode};
-use smallvec::SmallVec;
 
 pub fn apply_mutations(
     mutations: Mutations,
@@ -64,11 +63,12 @@ pub fn apply_mutations(
 }
 
 pub struct BevyTemplate {
-    roots: SmallVec<[BevyTemplateNode; 4]>,
+    roots: Box<[BevyTemplateNode]>,
 }
 
 enum BevyTemplateNode {
-    Text(Text),
+    Node { children: Box<[Self]> },
+    TextNode(Text),
 }
 
 impl BevyTemplate {
@@ -88,12 +88,19 @@ impl BevyTemplateNode {
         match node {
             TemplateNode::Element {
                 tag,
-                namespace,
-                attrs,
+                namespace: _,
+                attrs: _,
                 children,
-            } => todo!(),
+            } => {
+                if *tag != "div" {
+                    panic!("Unsupported bevy_dioxus tag {tag}. Only `div` is supported.");
+                }
+                Self::Node {
+                    children: children.iter().map(Self::from_dioxus).collect(),
+                }
+            }
             TemplateNode::Text { text } => {
-                Self::Text(Text::from_section(*text, TextStyle::default()))
+                Self::TextNode(Text::from_section(*text, TextStyle::default()))
             }
             TemplateNode::Dynamic { id } => todo!(),
             TemplateNode::DynamicText { id } => todo!(),
@@ -102,11 +109,23 @@ impl BevyTemplateNode {
 
     fn spawn(&self, commands: &mut Commands) -> Entity {
         match self {
-            Self::Text(text) => commands.spawn(TextBundle {
-                text: text.clone(),
-                ..default()
-            }),
+            BevyTemplateNode::Node { children } => {
+                // TODO: Can probably use with_children() instead
+                let children = children
+                    .iter()
+                    .map(|child| child.spawn(commands))
+                    .collect::<Box<[_]>>();
+                commands
+                    .spawn(NodeBundle::default())
+                    .push_children(&children)
+                    .id()
+            }
+            Self::TextNode(text) => commands
+                .spawn(TextBundle {
+                    text: text.clone(),
+                    ..default()
+                })
+                .id(),
         }
-        .id()
     }
 }
