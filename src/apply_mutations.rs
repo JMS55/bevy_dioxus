@@ -10,6 +10,7 @@ use dioxus::core::{ElementId, Mutation, Mutations, Template, TemplateNode};
 
 pub fn apply_mutations(
     mutations: Mutations,
+    hierarchy: &mut HashMap<(Entity, u8), Entity>,
     element_id_to_bevy_ui_entity: &mut HashMap<ElementId, Entity>,
     templates: &mut HashMap<String, BevyTemplate>,
     root_entity: Entity,
@@ -30,21 +31,37 @@ pub fn apply_mutations(
         match edit {
             Mutation::AppendChildren { id, m } => {
                 let mut parent = commands.entity(map[&id]);
-                for _ in 0..m {
-                    parent.add_child(stack.pop().unwrap());
+                let parent_existing_children_count =
+                    hierarchy.keys().filter(|(p, _)| *p == parent.id()).count();
+                for i in 1..=m {
+                    let child = stack.pop().unwrap();
+                    parent.add_child(child);
+                    hierarchy.insert(
+                        (parent.id(), (parent_existing_children_count + i) as u8),
+                        child,
+                    );
                 }
             }
             Mutation::AssignId { path, id } => todo!(),
             Mutation::CreatePlaceholder { id } => todo!(),
             Mutation::CreateTextNode { value, id } => {
                 let entity = BevyTemplateNode::from_dioxus(&TemplateNode::Text { text: value })
-                    .spawn(commands);
+                    .spawn(commands, hierarchy);
                 map.insert(id, entity);
                 stack.push(entity);
             }
-            Mutation::HydrateText { path, value, id } => todo!(),
+            Mutation::HydrateText { path, value, id } => {
+                let mut entity = *stack.last().unwrap();
+                for index in path {
+                    entity = hierarchy[&(entity, *index)];
+                }
+                commands
+                    .entity(entity)
+                    .insert(Text::from_section(value, TextStyle::default()));
+                map.insert(id, entity);
+            }
             Mutation::LoadTemplate { name, index, id } => {
-                let entity = templates[name].roots[index].spawn(commands);
+                let entity = templates[name].roots[index].spawn(commands, hierarchy);
                 map.insert(id, entity);
                 stack.push(entity);
             }
@@ -106,31 +123,39 @@ impl BevyTemplateNode {
                     children: children.iter().map(Self::from_dioxus).collect(),
                 }
             }
-
             TemplateNode::Text { text } => {
                 Self::TextNode(Text::from_section(*text, TextStyle::default()))
             }
-
-            TemplateNode::Dynamic { id } => todo!(),
-
-            TemplateNode::DynamicText { id } => todo!(),
+            TemplateNode::Dynamic { id: _ } => Self::Node {
+                children: Box::new([]),
+            },
+            TemplateNode::DynamicText { id: _ } => {
+                Self::TextNode(Text::from_section("", TextStyle::default()))
+            }
         }
     }
 
-    fn spawn(&self, commands: &mut Commands) -> Entity {
+    fn spawn(
+        &self,
+        commands: &mut Commands,
+        hierarchy: &mut HashMap<(Entity, u8), Entity>,
+    ) -> Entity {
         match self {
             BevyTemplateNode::Node { children } => {
                 // TODO: Can probably use with_children() instead
                 let children = children
                     .iter()
-                    .map(|child| child.spawn(commands))
+                    .map(|child| child.spawn(commands, hierarchy))
                     .collect::<Box<[_]>>();
-                commands
+                let parent = commands
                     .spawn(NodeBundle::default())
                     .push_children(&children)
-                    .id()
+                    .id();
+                for (i, child) in children.iter().enumerate() {
+                    hierarchy.insert((parent, i as u8), *child);
+                }
+                parent
             }
-
             Self::TextNode(text) => commands
                 .spawn(TextBundle {
                     text: text.clone(),

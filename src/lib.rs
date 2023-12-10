@@ -40,6 +40,7 @@ pub struct DioxusUiBundle {
 #[derive(Component)]
 pub struct DioxusUiRoot {
     virtual_dom: VirtualDomUnsafe,
+    hierarchy: HashMap<(Entity, u8), Entity>,
     element_id_to_bevy_ui_entity: HashMap<ElementId, Entity>,
     templates: HashMap<String, BevyTemplate>,
     needs_rebuild: bool,
@@ -49,6 +50,7 @@ impl DioxusUiRoot {
     pub fn new(root_component: fn(Scope) -> Element) -> Self {
         Self {
             virtual_dom: VirtualDomUnsafe::new(root_component),
+            hierarchy: HashMap::new(),
             element_id_to_bevy_ui_entity: HashMap::new(),
             templates: HashMap::new(),
             needs_rebuild: true,

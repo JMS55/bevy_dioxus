@@ -27,9 +27,10 @@ pub fn tick_dioxus_ui(world: &mut World) {
     } {
         let DioxusUiRoot {
             virtual_dom,
-            needs_rebuild,
+            hierarchy,
             element_id_to_bevy_ui_entity,
             templates,
+            needs_rebuild,
         } = &mut *dioxus_ui_root;
         let virtual_dom = virtual_dom.get();
 
@@ -43,6 +44,7 @@ pub fn tick_dioxus_ui(world: &mut World) {
         if *needs_rebuild {
             apply_mutations(
                 virtual_dom.rebuild(),
+                hierarchy,
                 element_id_to_bevy_ui_entity,
                 templates,
                 root_entity,
@@ -53,6 +55,7 @@ pub fn tick_dioxus_ui(world: &mut World) {
 
         apply_mutations(
             virtual_dom.render_immediate(),
+            hierarchy,
             element_id_to_bevy_ui_entity,
             templates,
             root_entity,
