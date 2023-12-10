@@ -1,6 +1,6 @@
 mod apply_mutations;
 mod deferred_system;
-mod hooks;
+pub mod hooks;
 mod tick;
 
 use self::{
@@ -16,10 +16,7 @@ use bevy::{
 };
 use dioxus::core::{Element, ElementId, Scope};
 
-pub use self::{
-    deferred_system::DeferredSystem,
-    hooks::{DioxusUiHooks, DioxusUiQuery},
-};
+pub use self::deferred_system::DeferredSystem;
 pub use bevy_mod_picking;
 pub use dioxus;
 

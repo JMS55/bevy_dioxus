@@ -9,61 +9,41 @@ use bevy::ecs::{
 };
 use dioxus::core::ScopeState;
 
-pub trait DioxusUiHooks {
-    fn use_world<'a>(&'a self) -> &'a World;
+// TODO: Hooks need to schedule future updates
 
-    fn use_resource<'a, T: Resource>(&'a self) -> &'a T;
-
-    fn use_query<'a, Q>(&'a self) -> DioxusUiQuery<'a, Q, ()>
-    where
-        Q: ReadOnlyWorldQuery;
-
-    fn use_query_filtered<'a, Q, F>(&'a self) -> DioxusUiQuery<'a, Q, F>
-    where
-        Q: ReadOnlyWorldQuery,
-        F: ReadOnlyWorldQuery;
-
-    fn use_system<S>(&self, system: S) -> DeferredSystem
-    where
-        S: IntoSystem<(), (), ()> + 'static;
+pub fn use_world<'a>(cx: &'a ScopeState) -> &'a World {
+    EcsContext::get_world(cx)
 }
 
-// TODO: Hooks need to schedule future updates
-impl DioxusUiHooks for ScopeState {
-    fn use_world<'a>(&'a self) -> &'a World {
-        EcsContext::get_world(self)
-    }
+pub fn use_resource<'a, T: Resource>(cx: &'a ScopeState) -> &'a T {
+    EcsContext::get_world(cx).resource()
+}
 
-    fn use_resource<'a, T: Resource>(&'a self) -> &'a T {
-        EcsContext::get_world(self).resource()
-    }
+pub fn use_query<'a, Q>(cx: &'a ScopeState) -> DioxusUiQuery<'a, Q, ()>
+where
+    Q: ReadOnlyWorldQuery,
+{
+    use_query_filtered(cx)
+}
 
-    fn use_query<'a, Q>(&'a self) -> DioxusUiQuery<'a, Q, ()>
-    where
-        Q: ReadOnlyWorldQuery,
-    {
-        Self::use_query_filtered(self)
+pub fn use_query_filtered<'a, Q, F>(cx: &'a ScopeState) -> DioxusUiQuery<'a, Q, F>
+where
+    Q: ReadOnlyWorldQuery,
+    F: ReadOnlyWorldQuery,
+{
+    let world = EcsContext::get_world(cx);
+    DioxusUiQuery {
+        query_state: QueryState::new(world),
+        world_cell: world.as_unsafe_world_cell(),
     }
+}
 
-    fn use_query_filtered<'a, Q, F>(&'a self) -> DioxusUiQuery<'a, Q, F>
-    where
-        Q: ReadOnlyWorldQuery,
-        F: ReadOnlyWorldQuery,
-    {
-        let world = EcsContext::get_world(self);
-        DioxusUiQuery {
-            query_state: QueryState::new(world),
-            world_cell: world.as_unsafe_world_cell(),
-        }
-    }
-
-    fn use_system<S>(&self, system: S) -> DeferredSystem
-    where
-        S: IntoSystem<(), (), ()> + 'static,
-    {
-        self.use_hook(|| new_deferred_system(system, EcsContext::get_world(self)))
-            .0
-    }
+pub fn use_system<S>(cx: &ScopeState, system: S) -> DeferredSystem
+where
+    S: IntoSystem<(), (), ()> + 'static,
+{
+    cx.use_hook(|| new_deferred_system(system, EcsContext::get_world(cx)))
+        .0
 }
 
 pub struct DioxusUiQuery<'a, Q: ReadOnlyWorldQuery, F: ReadOnlyWorldQuery> {
