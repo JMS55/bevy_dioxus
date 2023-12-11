@@ -34,13 +34,12 @@ pub fn apply_mutations(
         match edit {
             Mutation::AppendChildren { id, m } => {
                 let mut parent = commands.entity(element_id_to_bevy_ui_entity[&id]);
-                let parent_existing_children_count =
+                let parent_existing_child_count =
                     hierarchy.keys().filter(|(p, _)| *p == parent.id()).count();
-                for i in 1..=m {
-                    let child = stack.pop().unwrap();
+                for (i, child) in stack.drain((stack.len() - m)..).enumerate() {
                     parent.add_child(child);
                     hierarchy.insert(
-                        (parent.id(), (parent_existing_children_count + i) as u8),
+                        (parent.id(), (parent_existing_child_count + i + 1) as u8),
                         child,
                     );
                 }
