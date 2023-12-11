@@ -38,9 +38,9 @@ where
     }
 }
 
-pub fn use_system<S>(cx: &ScopeState, system: S) -> DeferredSystem
+pub fn use_system<S, M>(cx: &ScopeState, system: S) -> DeferredSystem
 where
-    S: IntoSystem<(), (), ()> + 'static,
+    S: IntoSystem<(), (), M> + 'static,
 {
     cx.use_hook(|| new_deferred_system(system, EcsContext::get_world(cx)))
         .0

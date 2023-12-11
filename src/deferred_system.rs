@@ -28,9 +28,9 @@ impl DeferredSystem {
 unsafe impl Send for DeferredSystem {}
 unsafe impl Sync for DeferredSystem {}
 
-pub fn new_deferred_system<S>(system: S, world: &mut World) -> (DeferredSystem, Arc<()>)
+pub fn new_deferred_system<S, M>(system: S, world: &mut World) -> (DeferredSystem, Arc<()>)
 where
-    S: IntoSystem<(), (), ()> + 'static,
+    S: IntoSystem<(), (), M> + 'static,
 {
     let id = world.register_system(system);
     let ref_count = Arc::new(());
