@@ -1,18 +1,20 @@
 mod apply_mutations;
 mod deferred_system;
+mod events;
 pub mod hooks;
 mod tick;
 
 use self::{
-    apply_mutations::{BevyTemplate, Event},
+    apply_mutations::BevyTemplate,
     deferred_system::DeferredSystemRegistry,
+    events::EventReaders,
     tick::{tick_dioxus_ui, VirtualDomUnsafe},
 };
 use bevy::{
     app::{App, Plugin, Update},
     ecs::{bundle::Bundle, component::Component, entity::Entity},
     ui::node_bundles::NodeBundle,
-    utils::{HashMap, HashSet},
+    utils::{EntityHashMap, HashMap},
 };
 use dioxus::core::{Element, ElementId, Scope};
 
@@ -25,6 +27,7 @@ pub struct DioxusUiPlugin;
 impl Plugin for DioxusUiPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<DeferredSystemRegistry>()
+            .init_resource::<EventReaders>()
             .add_systems(Update, tick_dioxus_ui);
     }
 }
@@ -40,7 +43,7 @@ pub struct DioxusUiRoot {
     virtual_dom: VirtualDomUnsafe,
     hierarchy: HashMap<(Entity, u8), Entity>,
     element_id_to_bevy_ui_entity: HashMap<ElementId, Entity>,
-    event_listeners: HashSet<(Event, ElementId)>,
+    bevy_ui_entity_to_element_id: EntityHashMap<Entity, ElementId>,
     templates: HashMap<String, BevyTemplate>,
     needs_rebuild: bool,
 }
@@ -51,7 +54,7 @@ impl DioxusUiRoot {
             virtual_dom: VirtualDomUnsafe::new(root_component),
             hierarchy: HashMap::new(),
             element_id_to_bevy_ui_entity: HashMap::new(),
-            event_listeners: HashSet::new(),
+            bevy_ui_entity_to_element_id: EntityHashMap::default(),
             templates: HashMap::new(),
             needs_rebuild: true,
         }

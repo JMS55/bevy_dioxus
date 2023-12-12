@@ -1,5 +1,6 @@
 use crate::{
-    apply_mutations::apply_mutations, deferred_system::DeferredSystemRegistry, DioxusUiRoot,
+    apply_mutations::apply_mutations, deferred_system::DeferredSystemRegistry,
+    events::EventReaders, DioxusUiRoot,
 };
 use bevy::{
     ecs::{
@@ -11,11 +12,17 @@ use bevy::{
     utils::synccell::SyncCell,
 };
 use dioxus::core::{Element, Scope, ScopeState, VirtualDom};
-use std::{mem, sync::Arc};
+use std::{mem, rc::Rc, sync::Arc};
 
 pub fn tick_dioxus_ui(world: &mut World) {
     let world_ptr: *mut World = world;
     let world_cell = world.as_unsafe_world_cell();
+    let events = unsafe {
+        world_cell
+            .get_resource_mut::<EventReaders>()
+            .unwrap()
+            .get_dioxus_events(world_cell.get_resource().unwrap())
+    };
     let mut command_queue = CommandQueue::default();
     let mut commands = Commands::new_from_entities(&mut command_queue, world_cell.entities());
 
@@ -29,7 +36,7 @@ pub fn tick_dioxus_ui(world: &mut World) {
             virtual_dom,
             hierarchy,
             element_id_to_bevy_ui_entity,
-            event_listeners,
+            bevy_ui_entity_to_element_id,
             templates,
             needs_rebuild,
         } = &mut *dioxus_ui_root;
@@ -39,15 +46,18 @@ pub fn tick_dioxus_ui(world: &mut World) {
             .base_scope()
             .provide_context(EcsContext { world: world_ptr });
 
-        // TODO: Handle events from winit
-        // virtual_dom.handle_event(todo!(), todo!(), todo!(), todo!());
+        for (target, name, data) in &events {
+            if let Some(target) = bevy_ui_entity_to_element_id.get(target) {
+                virtual_dom.handle_event(name, Rc::clone(data), *target, true);
+            }
+        }
 
         if *needs_rebuild {
             apply_mutations(
                 virtual_dom.rebuild(),
                 hierarchy,
                 element_id_to_bevy_ui_entity,
-                event_listeners,
+                bevy_ui_entity_to_element_id,
                 templates,
                 root_entity,
                 &mut commands,
@@ -59,7 +69,7 @@ pub fn tick_dioxus_ui(world: &mut World) {
             virtual_dom.render_immediate(),
             hierarchy,
             element_id_to_bevy_ui_entity,
-            event_listeners,
+            bevy_ui_entity_to_element_id,
             templates,
             root_entity,
             &mut commands,

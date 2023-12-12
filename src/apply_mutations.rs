@@ -1,3 +1,4 @@
+use crate::events::is_supported_event;
 use bevy::{
     ecs::{entity::Entity, system::Commands},
     hierarchy::BuildChildren,
@@ -7,7 +8,7 @@ use bevy::{
         node_bundles::{NodeBundle, TextBundle},
         *,
     },
-    utils::{HashMap, HashSet},
+    utils::{EntityHashMap, HashMap},
 };
 use dioxus::core::{ElementId, Mutation, Mutations, Template, TemplateAttribute, TemplateNode};
 
@@ -15,7 +16,7 @@ pub fn apply_mutations(
     mutations: Mutations,
     hierarchy: &mut HashMap<(Entity, u8), Entity>,
     element_id_to_bevy_ui_entity: &mut HashMap<ElementId, Entity>,
-    event_listeners: &mut HashSet<(Event, ElementId)>,
+    bevy_ui_entity_to_element_id: &mut EntityHashMap<Entity, ElementId>,
     templates: &mut HashMap<String, BevyTemplate>,
     root_entity: Entity,
     commands: &mut Commands,
@@ -28,6 +29,7 @@ pub fn apply_mutations(
     }
 
     element_id_to_bevy_ui_entity.insert(ElementId(0), root_entity);
+    bevy_ui_entity_to_element_id.insert(root_entity, ElementId(0));
     let mut stack = vec![root_entity];
 
     for edit in mutations.edits {
@@ -50,6 +52,7 @@ pub fn apply_mutations(
                 let entity = BevyTemplateNode::from_dioxus(&TemplateNode::Text { text: value })
                     .spawn(commands, hierarchy);
                 element_id_to_bevy_ui_entity.insert(id, entity);
+                bevy_ui_entity_to_element_id.insert(entity, id);
                 stack.push(entity);
             }
             Mutation::HydrateText { path, value, id } => {
@@ -61,10 +64,12 @@ pub fn apply_mutations(
                     .entity(entity)
                     .insert(Text::from_section(value, TextStyle::default()));
                 element_id_to_bevy_ui_entity.insert(id, entity);
+                bevy_ui_entity_to_element_id.insert(entity, id);
             }
             Mutation::LoadTemplate { name, index, id } => {
                 let entity = templates[name].roots[index].spawn(commands, hierarchy);
                 element_id_to_bevy_ui_entity.insert(id, entity);
+                bevy_ui_entity_to_element_id.insert(entity, id);
                 stack.push(entity);
             }
             Mutation::ReplaceWith { id, m } => todo!(),
@@ -77,13 +82,17 @@ pub fn apply_mutations(
                 id,
                 ns,
             } => todo!(),
-            Mutation::SetText { value, id } => todo!(),
-            Mutation::NewEventListener { name, id } => {
-                event_listeners.insert((Event::from_dioxus(name), id));
+            Mutation::SetText { value, id } => {
+                commands
+                    .entity(element_id_to_bevy_ui_entity[&id])
+                    .insert(Text::from_section(value, TextStyle::default()));
             }
-            Mutation::RemoveEventListener { name, id } => {
-                event_listeners.remove(&(Event::from_dioxus(name), id));
+            Mutation::NewEventListener { name, id: _ } => {
+                if !is_supported_event(name) {
+                    panic!("Encountered unsupported bevy_dioxus event `{name}`.");
+                }
             }
+            Mutation::RemoveEventListener { .. } => {}
             Mutation::Remove { id } => todo!(),
             Mutation::PushRoot { id } => stack.push(element_id_to_bevy_ui_entity[&id]),
         }
@@ -173,20 +182,6 @@ impl BevyTemplateNode {
                     ..default()
                 })
                 .id(),
-        }
-    }
-}
-
-#[derive(PartialEq, Eq, Hash, Clone, Copy)]
-pub enum Event {
-    Click,
-}
-
-impl Event {
-    pub fn from_dioxus(event: &str) -> Self {
-        match event {
-            "click" => Self::Click,
-            _ => panic!("Encountered unsupported bevy_dioxus event `{event}`."),
         }
     }
 }

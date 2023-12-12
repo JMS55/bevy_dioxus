@@ -6,10 +6,13 @@ edition = "2021"
 [dependencies]
 bevy = { git = "https://github.com/JMS55/bevy", branch = "query_new_12" }
 dioxus = "0.4"
-bevy_mod_picking = { version = "0.17", default-features = false }
+bevy_mod_picking = { version = "0.17", default-features = false, features = [
+    "backend_bevy_ui",
+] }
 
 [patch.crates-io]
 bevy_app = { git = "https://github.com/JMS55/bevy", branch = "query_new_12" }
+bevy_asset = { git = "https://github.com/JMS55/bevy", branch = "query_new_12" }
 bevy_core = { git = "https://github.com/JMS55/bevy", branch = "query_new_12" }
 bevy_ecs = { git = "https://github.com/JMS55/bevy", branch = "query_new_12" }
 bevy_hierarchy = { git = "https://github.com/JMS55/bevy", branch = "query_new_12" }
@@ -17,6 +20,8 @@ bevy_input = { git = "https://github.com/JMS55/bevy", branch = "query_new_12" }
 bevy_math = { git = "https://github.com/JMS55/bevy", branch = "query_new_12" }
 bevy_reflect = { git = "https://github.com/JMS55/bevy", branch = "query_new_12" }
 bevy_render = { git = "https://github.com/JMS55/bevy", branch = "query_new_12" }
+bevy_transform = { git = "https://github.com/JMS55/bevy", branch = "query_new_12" }
+bevy_ui = { git = "https://github.com/JMS55/bevy", branch = "query_new_12" }
 bevy_utils = { git = "https://github.com/JMS55/bevy", branch = "query_new_12" }
 bevy_window = { git = "https://github.com/JMS55/bevy", branch = "query_new_12" }
 
