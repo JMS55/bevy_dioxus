@@ -1,6 +1,6 @@
 use crate::{
     apply_mutations::apply_mutations, deferred_system::DeferredSystemRegistry,
-    events::EventReaders, DioxusUiRoot,
+    events::EventReaders, hooks::EcsSubscriptions, DioxusUiRoot,
 };
 use bevy::{
     ecs::{
@@ -17,6 +17,7 @@ use std::{mem, rc::Rc, sync::Arc};
 pub fn tick_dioxus_ui(world: &mut World) {
     let world_ptr: *mut World = world;
     let world_cell = world.as_unsafe_world_cell();
+    let ecs_subscriptions = unsafe { world_cell.get_resource::<EcsSubscriptions>().unwrap() };
     let events = unsafe {
         world_cell
             .get_resource_mut::<EventReaders>()
@@ -41,6 +42,19 @@ pub fn tick_dioxus_ui(world: &mut World) {
             needs_rebuild,
         } = &mut *dioxus_ui_root;
         let virtual_dom = virtual_dom.get();
+
+        let schedule_update = virtual_dom.base_scope().schedule_update_any();
+        for scope_id in &*ecs_subscriptions.world_and_queries {
+            schedule_update(*scope_id);
+        }
+        for (resource_id, scope_ids) in &*ecs_subscriptions.resources {
+            // TODO: Only schedule updates if resource has changed
+            // if unsafe { world_cell.world() }.is_resource_changed() {
+            for scope_id in scope_ids {
+                schedule_update(*scope_id);
+            }
+            // }
+        }
 
         virtual_dom
             .base_scope()

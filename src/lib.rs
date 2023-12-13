@@ -8,6 +8,7 @@ use self::{
     apply_mutations::BevyTemplate,
     deferred_system::DeferredSystemRegistry,
     events::EventReaders,
+    hooks::EcsSubscriptions,
     tick::{tick_dioxus_ui, VirtualDomUnsafe},
 };
 use bevy::{
@@ -26,7 +27,8 @@ pub struct DioxusUiPlugin;
 
 impl Plugin for DioxusUiPlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<DeferredSystemRegistry>()
+        app.init_resource::<EcsSubscriptions>()
+            .init_resource::<DeferredSystemRegistry>()
             .init_resource::<EventReaders>()
             .add_systems(Update, tick_dioxus_ui);
     }

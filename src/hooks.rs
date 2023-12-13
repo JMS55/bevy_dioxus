@@ -2,21 +2,65 @@ use crate::{
     deferred_system::{new_deferred_system, DeferredSystem},
     tick::EcsContext,
 };
-use bevy::ecs::{
-    query::{QueryState, ReadOnlyWorldQuery},
-    system::{IntoSystem, Query, Resource},
-    world::{unsafe_world_cell::UnsafeWorldCell, World},
+use bevy::{
+    ecs::{
+        component::ComponentId,
+        query::{QueryState, ReadOnlyWorldQuery},
+        system::{IntoSystem, Query, Resource},
+        world::{unsafe_world_cell::UnsafeWorldCell, World},
+    },
+    utils::{HashMap, HashSet},
 };
-use dioxus::core::ScopeState;
+use dioxus::{
+    core::{ScopeId, ScopeState},
+    hooks::use_on_destroy,
+};
 
-// TODO: Hooks need to schedule future updates
+#[derive(Resource, Default)]
+pub(crate) struct EcsSubscriptions {
+    pub resources: Box<HashMap<ComponentId, HashSet<ScopeId>>>,
+    pub world_and_queries: Box<HashSet<ScopeId>>,
+}
 
 pub fn use_world<'a>(cx: &'a ScopeState) -> &'a World {
-    EcsContext::get_world(cx)
+    let world = EcsContext::get_world(cx);
+
+    let scope_id = cx.scope_id();
+    let subscription_manager = *cx.use_hook(|| {
+        let subscription_manager = &mut world.resource_mut::<EcsSubscriptions>().world_and_queries;
+        subscription_manager.insert(scope_id);
+        Box::as_mut(subscription_manager) as *mut HashSet<ScopeId>
+    });
+    use_on_destroy(cx, move || {
+        unsafe { &mut *subscription_manager }.remove(&scope_id);
+    });
+
+    world
 }
 
 pub fn use_resource<'a, T: Resource>(cx: &'a ScopeState) -> &'a T {
-    EcsContext::get_world(cx).resource()
+    let world = EcsContext::get_world(cx);
+
+    let resource_id = world.components().resource_id::<T>().unwrap();
+    let scope_id = cx.scope_id();
+    let subscription_manager = *cx.use_hook(|| {
+        let subscription_manager = &mut world.resource_mut::<EcsSubscriptions>().resources;
+        subscription_manager
+            .entry(resource_id)
+            .or_default()
+            .insert(scope_id);
+        Box::as_mut(subscription_manager) as *mut HashMap<ComponentId, HashSet<ScopeId>>
+    });
+    use_on_destroy(cx, move || {
+        let subscription_manager = &mut unsafe { &mut *subscription_manager };
+        let resource_subscriptions = subscription_manager.get_mut(&resource_id).unwrap();
+        resource_subscriptions.remove(&scope_id);
+        if resource_subscriptions.is_empty() {
+            subscription_manager.remove(&resource_id);
+        }
+    });
+
+    world.resource()
 }
 
 pub fn use_query<'a, Q>(cx: &'a ScopeState) -> DioxusUiQuery<'a, Q, ()>
@@ -32,6 +76,17 @@ where
     F: ReadOnlyWorldQuery,
 {
     let world = EcsContext::get_world(cx);
+
+    let scope_id = cx.scope_id();
+    let subscription_manager = *cx.use_hook(|| {
+        let subscription_manager = &mut world.resource_mut::<EcsSubscriptions>().world_and_queries;
+        subscription_manager.insert(scope_id);
+        Box::as_mut(subscription_manager) as *mut HashSet<ScopeId>
+    });
+    use_on_destroy(cx, move || {
+        unsafe { &mut *subscription_manager }.remove(&scope_id);
+    });
+
     DioxusUiQuery {
         query_state: QueryState::new(world),
         world_cell: world.as_unsafe_world_cell(),
