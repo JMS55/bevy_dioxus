@@ -3,6 +3,7 @@ use bevy::{
     ecs::{entity::Entity, system::Commands},
     hierarchy::BuildChildren,
     prelude::default,
+    render::color::Color,
     text::{Text, TextStyle},
     ui::{
         node_bundles::{NodeBundle, TextBundle},
@@ -111,7 +112,10 @@ pub struct BevyTemplate {
 }
 
 enum BevyTemplateNode {
-    Node { style: Style, children: Box<[Self]> },
+    Node {
+        style: (Style, BackgroundColor),
+        children: Box<[Self]>,
+    },
     TextNode(Text),
 }
 
@@ -150,7 +154,7 @@ impl BevyTemplateNode {
                 Self::TextNode(Text::from_section(*text, TextStyle::default()))
             }
             TemplateNode::Dynamic { id: _ } => Self::Node {
-                style: Style::default(),
+                style: Default::default(),
                 children: Box::new([]),
             },
             TemplateNode::DynamicText { id: _ } => {
@@ -166,17 +170,23 @@ impl BevyTemplateNode {
         children_to_parent: &mut EntityHashMap<Entity, Entity>,
     ) -> Entity {
         match self {
-            BevyTemplateNode::Node { style, children } => {
+            BevyTemplateNode::Node {
+                style: (style, background_color),
+                children,
+            } => {
                 // TODO: Can probably use with_children() instead
                 let children = children
                     .iter()
                     .map(|child| child.spawn(commands, parent_to_children, children_to_parent))
                     .collect::<Box<[_]>>();
                 let parent = commands
-                    .spawn(NodeBundle {
-                        style: style.clone(),
-                        ..default()
-                    })
+                    .spawn((
+                        NodeBundle {
+                            style: style.clone(),
+                            ..default()
+                        },
+                        background_color.clone(),
+                    ))
                     .push_children(&children)
                     .id();
                 for (i, child) in children.iter().enumerate() {
@@ -195,8 +205,9 @@ impl BevyTemplateNode {
     }
 }
 
-fn parse_style_attributes(attributes: &[TemplateAttribute]) -> Style {
+fn parse_style_attributes(attributes: &[TemplateAttribute]) -> (Style, BackgroundColor) {
     let mut style = Style::default();
+    let mut backgroud_color = BackgroundColor::default();
     for attribute in attributes {
         if let TemplateAttribute::Static {
             name,
@@ -211,9 +222,15 @@ fn parse_style_attributes(attributes: &[TemplateAttribute]) -> Style {
                 ("display", "none") => style.display = Display::None,
                 ("position", "relative") => style.position_type = PositionType::Relative,
                 ("position", "absolute") => style.position_type = PositionType::Absolute,
+                ("flex-direction", "column") => style.flex_direction = FlexDirection::Column,
+                ("background-color", hex) => {
+                    backgroud_color.0 = Color::hex(hex).expect(&format!(
+                        "Encountered unsupported bevy_dioxus background-color `{value}`."
+                    ))
+                }
                 _ => panic!("Encountered unsupported bevy_dioxus attribute `{name}: {value}`."),
             }
         }
     }
-    style
+    (style, backgroud_color)
 }

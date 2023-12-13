@@ -1,4 +1,5 @@
 mod apply_mutations;
+pub mod colors;
 mod deferred_system;
 mod events;
 pub mod hooks;

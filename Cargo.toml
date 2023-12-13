@@ -26,4 +26,4 @@ bevy_utils = { git = "https://github.com/JMS55/bevy", branch = "query_new_12" }
 bevy_window = { git = "https://github.com/JMS55/bevy", branch = "query_new_12" }
 
 [[example]]
-name = "basic"
+name = "demo"
