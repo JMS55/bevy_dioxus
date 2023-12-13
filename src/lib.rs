@@ -19,7 +19,6 @@ use bevy::{
 };
 use dioxus::core::{Element, ElementId, Scope};
 
-pub use self::deferred_system::DeferredSystem;
 pub use bevy_mod_picking;
 pub use dioxus;
 

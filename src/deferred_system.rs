@@ -9,18 +9,19 @@ use std::sync::Arc;
 
 #[derive(Resource, Default)]
 pub struct DeferredSystemRegistry {
+    // TODO: Replace ref_counts with Box<Vec<SystemId>> and insert SystemId into it on unmount
     pub ref_counts: HashMap<SystemId, Arc<()>>,
     pub run_queue: Box<Vec<SystemId>>,
 }
 
 #[derive(Clone, Copy)]
-pub struct DeferredSystem {
+struct DeferredSystem {
     id: SystemId,
     run_queue: *mut Vec<SystemId>,
 }
 
 impl DeferredSystem {
-    pub fn schedule(&self) {
+    fn schedule(&self) {
         unsafe { &mut *self.run_queue }.push(self.id);
     }
 }
@@ -28,9 +29,13 @@ impl DeferredSystem {
 unsafe impl Send for DeferredSystem {}
 unsafe impl Sync for DeferredSystem {}
 
-pub fn new_deferred_system<S, M>(system: S, world: &mut World) -> (DeferredSystem, Arc<()>)
+pub fn new_deferred_system<S, M>(
+    system: S,
+    world: &mut World,
+) -> (impl Fn() + Send + Sync + Copy, Arc<()>)
 where
     S: IntoSystem<(), (), M> + 'static,
+    M: 'static,
 {
     let id = world.register_system(system);
     let ref_count = Arc::new(());
@@ -45,5 +50,5 @@ where
         run_queue: Box::as_mut(&mut system_registry.run_queue),
     };
 
-    (deferred_system, ref_count)
+    (move || deferred_system.schedule(), ref_count)
 }

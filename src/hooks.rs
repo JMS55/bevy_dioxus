@@ -1,7 +1,4 @@
-use crate::{
-    deferred_system::{new_deferred_system, DeferredSystem},
-    tick::EcsContext,
-};
+use crate::{deferred_system::new_deferred_system, tick::EcsContext};
 use bevy::{
     ecs::{
         component::ComponentId,
@@ -93,9 +90,10 @@ where
     }
 }
 
-pub fn use_system<S, M>(cx: &ScopeState, system: S) -> DeferredSystem
+pub fn use_system<S, M>(cx: &ScopeState, system: S) -> impl Fn() + Send + Sync + Copy
 where
     S: IntoSystem<(), (), M> + 'static,
+    M: 'static,
 {
     cx.use_hook(|| new_deferred_system(system, EcsContext::get_world(cx)))
         .0
