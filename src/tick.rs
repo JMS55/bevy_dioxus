@@ -35,7 +35,8 @@ pub fn tick_dioxus_ui(world: &mut World) {
     } {
         let DioxusUiRoot {
             virtual_dom,
-            hierarchy,
+            parent_to_children,
+            children_to_parent,
             element_id_to_bevy_ui_entity,
             bevy_ui_entity_to_element_id,
             templates,
@@ -59,16 +60,20 @@ pub fn tick_dioxus_ui(world: &mut World) {
             .base_scope()
             .provide_context(EcsContext { world: world_ptr });
 
-        for (target, name, data) in &events {
-            if let Some(target) = bevy_ui_entity_to_element_id.get(target) {
-                virtual_dom.handle_event(name, Rc::clone(data), *target, true);
+        for (mut target, name, data) in &events {
+            let mut target_element_id = bevy_ui_entity_to_element_id.get(&target);
+            while target_element_id.is_none() {
+                target = children_to_parent[&target];
+                target_element_id = bevy_ui_entity_to_element_id.get(&target);
             }
+            virtual_dom.handle_event(name, Rc::clone(data), *target_element_id.unwrap(), true);
         }
 
         if *needs_rebuild {
             apply_mutations(
                 virtual_dom.rebuild(),
-                hierarchy,
+                parent_to_children,
+                children_to_parent,
                 element_id_to_bevy_ui_entity,
                 bevy_ui_entity_to_element_id,
                 templates,
@@ -80,7 +85,8 @@ pub fn tick_dioxus_ui(world: &mut World) {
 
         apply_mutations(
             virtual_dom.render_immediate(),
-            hierarchy,
+            parent_to_children,
+            children_to_parent,
             element_id_to_bevy_ui_entity,
             bevy_ui_entity_to_element_id,
             templates,

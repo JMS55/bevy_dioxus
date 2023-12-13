@@ -14,7 +14,8 @@ use dioxus::core::{ElementId, Mutation, Mutations, Template, TemplateAttribute, 
 
 pub fn apply_mutations(
     mutations: Mutations,
-    hierarchy: &mut HashMap<(Entity, u8), Entity>,
+    parent_to_children: &mut HashMap<(Entity, u8), Entity>,
+    children_to_parent: &mut EntityHashMap<Entity, Entity>,
     element_id_to_bevy_ui_entity: &mut HashMap<ElementId, Entity>,
     bevy_ui_entity_to_element_id: &mut EntityHashMap<Entity, ElementId>,
     templates: &mut HashMap<String, BevyTemplate>,
@@ -36,11 +37,13 @@ pub fn apply_mutations(
         match edit {
             Mutation::AppendChildren { id, m } => {
                 let mut parent = commands.entity(element_id_to_bevy_ui_entity[&id]);
-                let parent_existing_child_count =
-                    hierarchy.keys().filter(|(p, _)| *p == parent.id()).count();
+                let parent_existing_child_count = parent_to_children
+                    .keys()
+                    .filter(|(p, _)| *p == parent.id())
+                    .count();
                 for (i, child) in stack.drain((stack.len() - m)..).enumerate() {
                     parent.add_child(child);
-                    hierarchy.insert(
+                    parent_to_children.insert(
                         (parent.id(), (parent_existing_child_count + i + 1) as u8),
                         child,
                     );
@@ -50,7 +53,7 @@ pub fn apply_mutations(
             Mutation::CreatePlaceholder { id } => todo!(),
             Mutation::CreateTextNode { value, id } => {
                 let entity = BevyTemplateNode::from_dioxus(&TemplateNode::Text { text: value })
-                    .spawn(commands, hierarchy);
+                    .spawn(commands, parent_to_children, children_to_parent);
                 element_id_to_bevy_ui_entity.insert(id, entity);
                 bevy_ui_entity_to_element_id.insert(entity, id);
                 stack.push(entity);
@@ -58,7 +61,7 @@ pub fn apply_mutations(
             Mutation::HydrateText { path, value, id } => {
                 let mut entity = *stack.last().unwrap();
                 for index in path {
-                    entity = hierarchy[&(entity, *index)];
+                    entity = parent_to_children[&(entity, *index)];
                 }
                 commands
                     .entity(entity)
@@ -67,7 +70,11 @@ pub fn apply_mutations(
                 bevy_ui_entity_to_element_id.insert(entity, id);
             }
             Mutation::LoadTemplate { name, index, id } => {
-                let entity = templates[name].roots[index].spawn(commands, hierarchy);
+                let entity = templates[name].roots[index].spawn(
+                    commands,
+                    parent_to_children,
+                    children_to_parent,
+                );
                 element_id_to_bevy_ui_entity.insert(id, entity);
                 bevy_ui_entity_to_element_id.insert(entity, id);
                 stack.push(entity);
@@ -155,14 +162,15 @@ impl BevyTemplateNode {
     fn spawn(
         &self,
         commands: &mut Commands,
-        hierarchy: &mut HashMap<(Entity, u8), Entity>,
+        parent_to_children: &mut HashMap<(Entity, u8), Entity>,
+        children_to_parent: &mut EntityHashMap<Entity, Entity>,
     ) -> Entity {
         match self {
             BevyTemplateNode::Node { style, children } => {
                 // TODO: Can probably use with_children() instead
                 let children = children
                     .iter()
-                    .map(|child| child.spawn(commands, hierarchy))
+                    .map(|child| child.spawn(commands, parent_to_children, children_to_parent))
                     .collect::<Box<[_]>>();
                 let parent = commands
                     .spawn(NodeBundle {
@@ -172,7 +180,8 @@ impl BevyTemplateNode {
                     .push_children(&children)
                     .id();
                 for (i, child) in children.iter().enumerate() {
-                    hierarchy.insert((parent, i as u8), *child);
+                    parent_to_children.insert((parent, i as u8), *child);
+                    children_to_parent.insert(*child, parent);
                 }
                 parent
             }
