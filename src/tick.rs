@@ -48,12 +48,11 @@ pub fn tick_dioxus_ui(world: &mut World) {
             schedule_update(*scope_id);
         }
         for (resource_id, scope_ids) in &*ecs_subscriptions.resources {
-            // TODO: Only schedule updates if resource has changed
-            // if unsafe { world_cell.world() }.is_resource_changed() {
-            for scope_id in scope_ids {
-                schedule_update(*scope_id);
+            if unsafe { world_cell.world() }.is_resource_changed_by_id(*resource_id) {
+                for scope_id in scope_ids {
+                    schedule_update(*scope_id);
+                }
             }
-            // }
         }
 
         virtual_dom
