@@ -1,6 +1,6 @@
 use crate::events::is_supported_event;
 use bevy::{
-    ecs::{entity::Entity, system::Commands, world::World},
+    ecs::{component::Component, entity::Entity, system::Commands, world::World},
     hierarchy::BuildChildren,
     prelude::default,
     render::color::Color,
@@ -100,13 +100,10 @@ pub fn apply_mutations(
                         let color = Color::hex(hex).expect(&format!(
                             "Encountered unsupported bevy_dioxus background-color `{hex}`."
                         ));
-                        commands.add(move |world: &mut World| {
-                            world
-                                .entity_mut(entity)
-                                .get_mut::<BackgroundColor>()
-                                .unwrap()
-                                .0 = color;
-                        });
+                        commands.add(modify_component_command::<BackgroundColor, _>(
+                            entity,
+                            move |background_color| background_color.0 = color,
+                        ));
                     }
                     (name, value) => {
                         panic!("Encountered unsupported bevy_dioxus attribute `{name}: {value:?}`.")
@@ -256,4 +253,12 @@ fn parse_style_attributes(attributes: &[TemplateAttribute]) -> (Style, Backgroun
         }
     }
     (style, background_color)
+}
+
+fn modify_component_command<C, F>(entity: Entity, f: F) -> impl FnOnce(&mut World) + Send + 'static
+where
+    C: Component,
+    F: FnOnce(&mut C) + Send + 'static,
+{
+    move |world: &mut World| (f)(&mut world.entity_mut(entity).get_mut::<C>().unwrap())
 }
