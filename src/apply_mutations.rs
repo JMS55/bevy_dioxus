@@ -54,7 +54,14 @@ pub fn apply_mutations(
                 }
             }
             Mutation::AssignId { path, id } => todo!(),
-            Mutation::CreatePlaceholder { id } => todo!(),
+            Mutation::CreatePlaceholder { id } => {
+                let entity = commands
+                    .spawn((NodeBundle::default(), BackgroundColor::default()))
+                    .id();
+                element_id_to_bevy_ui_entity.insert(id, entity);
+                bevy_ui_entity_to_element_id.insert(entity, id);
+                stack.push(entity);
+            }
             Mutation::CreateTextNode { value, id } => {
                 let entity = BevyTemplateNode::from_dioxus(&TemplateNode::Text { text: value })
                     .spawn(commands, parent_to_children, children_to_parent);
