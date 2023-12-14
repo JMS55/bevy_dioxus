@@ -1,6 +1,6 @@
 use crate::events::is_supported_event;
 use bevy::{
-    ecs::{entity::Entity, system::Commands},
+    ecs::{entity::Entity, system::Commands, world::World},
     hierarchy::BuildChildren,
     prelude::default,
     render::color::Color,
@@ -11,7 +11,10 @@ use bevy::{
     },
     utils::{EntityHashMap, HashMap},
 };
-use dioxus::core::{ElementId, Mutation, Mutations, Template, TemplateAttribute, TemplateNode};
+use dioxus::core::{
+    BorrowedAttributeValue, ElementId, Mutation, Mutations, Template, TemplateAttribute,
+    TemplateNode,
+};
 
 pub fn apply_mutations(
     mutations: Mutations,
@@ -88,8 +91,28 @@ pub fn apply_mutations(
                 name,
                 value,
                 id,
-                ns,
-            } => todo!(),
+                ns: _,
+            } => {
+                let entity = element_id_to_bevy_ui_entity[&id];
+                // TODO: The rest of Style
+                match (name, value) {
+                    ("background-color", BorrowedAttributeValue::Text(hex)) => {
+                        let color = Color::hex(hex).expect(&format!(
+                            "Encountered unsupported bevy_dioxus background-color `{hex}`."
+                        ));
+                        commands.add(move |world: &mut World| {
+                            world
+                                .entity_mut(entity)
+                                .get_mut::<BackgroundColor>()
+                                .unwrap()
+                                .0 = color;
+                        });
+                    }
+                    (name, value) => {
+                        panic!("Encountered unsupported bevy_dioxus attribute `{name}: {value:?}`.")
+                    }
+                }
+            }
             Mutation::SetText { value, id } => {
                 commands
                     .entity(element_id_to_bevy_ui_entity[&id])
@@ -207,7 +230,7 @@ impl BevyTemplateNode {
 
 fn parse_style_attributes(attributes: &[TemplateAttribute]) -> (Style, BackgroundColor) {
     let mut style = Style::default();
-    let mut backgroud_color = BackgroundColor::default();
+    let mut background_color = BackgroundColor::default();
     for attribute in attributes {
         if let TemplateAttribute::Static {
             name,
@@ -224,13 +247,13 @@ fn parse_style_attributes(attributes: &[TemplateAttribute]) -> (Style, Backgroun
                 ("position", "absolute") => style.position_type = PositionType::Absolute,
                 ("flex-direction", "column") => style.flex_direction = FlexDirection::Column,
                 ("background-color", hex) => {
-                    backgroud_color.0 = Color::hex(hex).expect(&format!(
-                        "Encountered unsupported bevy_dioxus background-color `{value}`."
+                    background_color.0 = Color::hex(hex).expect(&format!(
+                        "Encountered unsupported bevy_dioxus background-color `{hex}`."
                     ))
                 }
                 _ => panic!("Encountered unsupported bevy_dioxus attribute `{name}: {value}`."),
             }
         }
     }
-    (style, backgroud_color)
+    (style, background_color)
 }
