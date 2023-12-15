@@ -1,6 +1,9 @@
 use crate::{
-    apply_mutations::apply_mutations, deferred_system::DeferredSystemRegistry,
-    events::EventReaders, hooks::EcsSubscriptions, DioxusUiRoot,
+    apply_mutations::apply_mutations,
+    deferred_system::DeferredSystemRegistry,
+    events::EventReaders,
+    hooks::{EcsContext, EcsSubscriptions},
+    DioxusUiRoot,
 };
 use bevy::{
     ecs::{
@@ -11,7 +14,7 @@ use bevy::{
     prelude::{Deref, DerefMut},
     utils::synccell::SyncCell,
 };
-use dioxus::core::{Element, Scope, ScopeState, VirtualDom};
+use dioxus::core::{Element, Scope, VirtualDom};
 use std::{mem, rc::Rc, sync::Arc};
 
 pub fn tick_dioxus_ui(world: &mut World) {
@@ -110,22 +113,6 @@ pub fn tick_dioxus_ui(world: &mut World) {
             !cleanup
         });
     });
-}
-
-#[derive(Clone)]
-pub(crate) struct EcsContext {
-    world: *mut World,
-}
-
-impl EcsContext {
-    pub fn get_world(cx: &ScopeState) -> &mut World {
-        unsafe {
-            &mut *cx
-                .consume_context::<EcsContext>()
-                .expect("Must be used from a dioxus component within a DioxusUiRoot bevy component")
-                .world
-        }
-    }
 }
 
 #[derive(Deref, DerefMut)]

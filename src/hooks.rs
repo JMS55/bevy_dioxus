@@ -1,4 +1,4 @@
-use crate::{deferred_system::new_deferred_system, tick::EcsContext};
+use crate::deferred_system::new_deferred_system;
 use bevy::{
     ecs::{
         component::ComponentId,
@@ -17,6 +17,22 @@ use dioxus::{
 pub(crate) struct EcsSubscriptions {
     pub resources: Box<HashMap<ComponentId, HashSet<ScopeId>>>,
     pub world_and_queries: Box<HashSet<ScopeId>>,
+}
+
+#[derive(Clone)]
+pub(crate) struct EcsContext {
+    pub world: *mut World,
+}
+
+impl EcsContext {
+    fn get_world(cx: &ScopeState) -> &mut World {
+        unsafe {
+            &mut *cx
+                .consume_context::<EcsContext>()
+                .expect("Must be used from a dioxus component within a DioxusUiRoot bevy component")
+                .world
+        }
+    }
 }
 
 pub fn use_world<'a>(cx: &'a ScopeState) -> &'a World {
