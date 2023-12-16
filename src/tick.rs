@@ -1,5 +1,5 @@
 use crate::{
-    apply_mutations::{apply_mutations, BevyTemplate},
+    apply_mutations::apply_mutations,
     deferred_system::DeferredSystemRegistry,
     events::EventReaders,
     hooks::{EcsContext, EcsSubscriptions},
@@ -8,66 +8,33 @@ use crate::{
 use bevy::{
     ecs::{
         entity::Entity,
-        world::{Mut, World},
+        query::With,
+        world::{unsafe_world_cell::UnsafeWorldCell, Mut, World},
     },
     hierarchy::Parent,
     prelude::{Deref, DerefMut},
-    utils::{hashbrown::HashMap, synccell::SyncCell, EntityHashMap},
+    utils::synccell::SyncCell,
 };
-use dioxus::core::{Element, ElementId, Scope, VirtualDom};
+use dioxus::core::{Element, Scope, VirtualDom};
 use std::{any::Any, mem, rc::Rc, sync::Arc};
 
 pub fn tick_dioxus_ui(world: &mut World) {
     run_deferred_systems(world);
 
-    let world_ptr: *mut World = world;
-    let world_cell = world.as_unsafe_world_cell();
+    let ui_events = world.resource_scope(|world, mut event_readers: Mut<EventReaders>| {
+        event_readers.get_dioxus_events(world.resource())
+    });
+    let root_entities: Vec<Entity> = world
+        .query_filtered::<Entity, With<DioxusUiRoot>>()
+        .iter(world)
+        .collect();
 
-    let ui_events = unsafe {
-        world_cell
-            .get_resource_mut::<EventReaders>()
-            .unwrap()
-            .get_dioxus_events(world_cell.get_resource().unwrap())
-    };
+    for root_entity in root_entities {
+        dispatch_ui_events(&ui_events, root_entity, world.as_unsafe_world_cell());
 
-    for (root_entity, mut dioxus_ui_root) in unsafe {
-        world_cell
-            .world_mut()
-            .query::<(Entity, &mut DioxusUiRoot)>()
-            .iter_mut(world_cell.world_mut())
-    } {
-        let DioxusUiRoot {
-            virtual_dom,
-            element_id_to_bevy_ui_entity,
-            bevy_ui_entity_to_element_id,
-            templates,
-            needs_rebuild,
-        } = &mut *dioxus_ui_root;
-        let virtual_dom = virtual_dom.get();
+        schedule_ui_renders_from_ecs_subscriptions(root_entity, world);
 
-        dispatch_ui_events(
-            &ui_events,
-            bevy_ui_entity_to_element_id,
-            virtual_dom,
-            unsafe { world_cell.world() },
-        );
-
-        schedule_ui_renders_from_ecs_subscriptions(
-            virtual_dom,
-            unsafe { world_cell.get_resource::<EcsSubscriptions>().unwrap() },
-            unsafe { world_cell.world() },
-        );
-
-        render_ui(
-            virtual_dom,
-            needs_rebuild,
-            element_id_to_bevy_ui_entity,
-            bevy_ui_entity_to_element_id,
-            templates,
-            root_entity,
-            unsafe { world_cell.world_mut() },
-            world_ptr,
-        );
+        render_ui(root_entity, world);
     }
 }
 
@@ -87,15 +54,59 @@ fn run_deferred_systems(world: &mut World) {
     });
 }
 
-fn schedule_ui_renders_from_ecs_subscriptions(
-    virtual_dom: &mut VirtualDom,
-    ecs_subscriptions: &EcsSubscriptions,
-    world: &World,
+fn dispatch_ui_events(
+    events: &Vec<(Entity, &str, Rc<dyn Any>)>,
+    root_entity: Entity,
+    world_cell: UnsafeWorldCell,
 ) {
-    let schedule_update = virtual_dom.base_scope().schedule_update_any();
+    let mut ui_root = unsafe {
+        world_cell
+            .get_entity(root_entity)
+            .unwrap()
+            .get_mut::<DioxusUiRoot>()
+            .unwrap()
+    };
+
+    let get_parent = |entity| unsafe {
+        world_cell
+            .get_entity(entity)
+            .unwrap()
+            .get::<Parent>()
+            .unwrap()
+            .get()
+    };
+
+    for (mut target, name, data) in events {
+        let mut target_element_id = ui_root.bevy_ui_entity_to_element_id.get(&target).copied();
+        while target_element_id.is_none() {
+            target = get_parent(target);
+            target_element_id = ui_root.bevy_ui_entity_to_element_id.get(&target).copied();
+        }
+
+        ui_root.virtual_dom.get().handle_event(
+            name,
+            Rc::clone(data),
+            target_element_id.unwrap(),
+            true,
+        );
+    }
+}
+
+fn schedule_ui_renders_from_ecs_subscriptions(root_entity: Entity, world: &mut World) {
+    let schedule_update = world
+        .get_mut::<DioxusUiRoot>(root_entity)
+        .unwrap()
+        .virtual_dom
+        .get()
+        .base_scope()
+        .schedule_update_any();
+
+    let ecs_subscriptions = world.resource::<EcsSubscriptions>();
+
     for scope_id in &*ecs_subscriptions.world_and_queries {
         schedule_update(*scope_id);
     }
+
     for (resource_id, scope_ids) in &*ecs_subscriptions.resources {
         if world.is_resource_changed_by_id(*resource_id) {
             for scope_id in scope_ids {
@@ -105,35 +116,10 @@ fn schedule_ui_renders_from_ecs_subscriptions(
     }
 }
 
-fn dispatch_ui_events(
-    events: &Vec<(Entity, &str, Rc<dyn Any>)>,
-    bevy_ui_entity_to_element_id: &mut EntityHashMap<Entity, ElementId>,
-    virtual_dom: &mut VirtualDom,
-    world: &World,
-) {
-    for (mut target, name, data) in events {
-        let mut target_element_id = bevy_ui_entity_to_element_id.get(&target);
-        while target_element_id.is_none() {
-            target = world.entity(target).get::<Parent>().unwrap().get();
-            target_element_id = bevy_ui_entity_to_element_id.get(&target);
-        }
-        virtual_dom.handle_event(name, Rc::clone(data), *target_element_id.unwrap(), true);
-    }
-}
-
-fn render_ui(
-    virtual_dom: &mut VirtualDom,
-    needs_rebuild: &mut bool,
-    element_id_to_bevy_ui_entity: &mut HashMap<ElementId, Entity>,
-    bevy_ui_entity_to_element_id: &mut EntityHashMap<Entity, ElementId>,
-    templates: &mut HashMap<String, BevyTemplate>,
-    root_entity: Entity,
-    world: &mut World,
-    world_ptr: *mut World,
-) {
+fn render_ui(root_entity: Entity, world: &mut World) {
     virtual_dom
         .base_scope()
-        .provide_context(EcsContext { world: world_ptr });
+        .provide_context(EcsContext { world });
 
     if *needs_rebuild {
         apply_mutations(
