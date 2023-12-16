@@ -39,17 +39,11 @@ pub struct DioxusUiBundle {
     pub node_bundle: NodeBundle,
 }
 
-#[derive(Component, Deref, Clone, Copy)]
-pub struct DioxusUiRoot(fn(Scope) -> Element);
-
-impl DioxusUiRoot {
-    pub fn new(root_component: fn(Scope) -> Element) -> Self {
-        Self(root_component)
-    }
-}
+#[derive(Component, Deref, Hash, PartialEq, Eq, Clone, Copy)]
+pub struct DioxusUiRoot(pub fn(Scope) -> Element);
 
 #[derive(Deref, DerefMut, Default)]
-struct UiRoots(EntityHashMap<Entity, UiRoot>);
+struct UiRoots(HashMap<(Entity, DioxusUiRoot), UiRoot>);
 
 struct UiRoot {
     virtual_dom: VirtualDom,
@@ -60,9 +54,9 @@ struct UiRoot {
 }
 
 impl UiRoot {
-    fn new(root_component: fn(Scope) -> Element) -> Self {
+    fn new(root_component: DioxusUiRoot) -> Self {
         Self {
-            virtual_dom: VirtualDom::new(root_component),
+            virtual_dom: VirtualDom::new(root_component.0),
             element_id_to_bevy_ui_entity: HashMap::new(),
             bevy_ui_entity_to_element_id: EntityHashMap::default(),
             templates: HashMap::new(),

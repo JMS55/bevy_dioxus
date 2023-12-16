@@ -27,16 +27,12 @@ pub fn tick_dioxus_ui(world: &mut World) {
         .iter(world)
         .map(|(entity, ui_root)| (entity, *ui_root))
         .collect();
+    let mut ui_roots = mem::take(&mut world.non_send_resource_mut::<UiRoots>().0);
 
-    world
-        .non_send_resource_mut::<UiRoots>()
-        .retain(|root_entity, _| root_entities.contains_key(root_entity));
-
-    for (root_entity, ui_root) in root_entities {
-        let mut ui_root = world
-            .non_send_resource_mut::<UiRoots>()
-            .remove(&root_entity)
-            .unwrap_or_else(|| UiRoot::new(*ui_root));
+    for (root_entity, dioxus_ui_root) in root_entities {
+        let mut ui_root = ui_roots
+            .remove(&(root_entity, dioxus_ui_root))
+            .unwrap_or_else(|| UiRoot::new(dioxus_ui_root));
 
         dispatch_ui_events(&ui_events, &mut ui_root, world);
 
@@ -46,7 +42,7 @@ pub fn tick_dioxus_ui(world: &mut World) {
 
         world
             .non_send_resource_mut::<UiRoots>()
-            .insert(root_entity, ui_root);
+            .insert((root_entity, dioxus_ui_root), ui_root);
     }
 }
 

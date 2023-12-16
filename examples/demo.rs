@@ -16,7 +16,7 @@ fn main() {
         .add_plugins((DefaultPlugins, DioxusUiPlugin, DefaultPickingPlugins))
         .add_systems(Startup, |mut commands: Commands| {
             commands.spawn(DioxusUiBundle {
-                dioxus_ui_root: DioxusUiRoot::new(Editor),
+                dioxus_ui_root: DioxusUiRoot(Editor),
                 node_bundle: NodeBundle::default(),
             });
             commands.spawn(Camera2dBundle::default());
