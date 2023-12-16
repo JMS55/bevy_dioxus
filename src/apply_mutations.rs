@@ -1,7 +1,7 @@
 use crate::events::is_supported_event;
 use bevy::{
-    ecs::{component::Component, entity::Entity, system::Commands, world::World},
-    hierarchy::BuildChildren,
+    ecs::{entity::Entity, world::World},
+    hierarchy::{BuildWorldChildren, Children, Parent},
     prelude::default,
     render::color::Color,
     text::{Text, TextStyle},
@@ -18,13 +18,11 @@ use dioxus::core::{
 
 pub fn apply_mutations(
     mutations: Mutations,
-    parent_to_children: &mut HashMap<(Entity, u8), Entity>,
-    children_to_parent: &mut EntityHashMap<Entity, Entity>,
     element_id_to_bevy_ui_entity: &mut HashMap<ElementId, Entity>,
     bevy_ui_entity_to_element_id: &mut EntityHashMap<Entity, ElementId>,
     templates: &mut HashMap<String, BevyTemplate>,
     root_entity: Entity,
-    commands: &mut Commands,
+    world: &mut World,
 ) {
     for new_template in mutations.templates {
         templates.insert(
@@ -40,22 +38,14 @@ pub fn apply_mutations(
     for edit in mutations.edits {
         match edit {
             Mutation::AppendChildren { id, m } => {
-                let mut parent = commands.entity(element_id_to_bevy_ui_entity[&id]);
-                let parent_existing_child_count = parent_to_children
-                    .keys()
-                    .filter(|(p, _)| *p == parent.id())
-                    .count();
-                for (i, child) in stack.drain((stack.len() - m)..).enumerate() {
+                let mut parent = world.entity_mut(element_id_to_bevy_ui_entity[&id]);
+                for child in stack.drain((stack.len() - m)..) {
                     parent.add_child(child);
-                    parent_to_children.insert(
-                        (parent.id(), (parent_existing_child_count + i + 1) as u8),
-                        child,
-                    );
                 }
             }
             Mutation::AssignId { path, id } => todo!(),
             Mutation::CreatePlaceholder { id } => {
-                let entity = commands
+                let entity = world
                     .spawn((NodeBundle::default(), BackgroundColor::default()))
                     .id();
                 element_id_to_bevy_ui_entity.insert(id, entity);
@@ -63,8 +53,8 @@ pub fn apply_mutations(
                 stack.push(entity);
             }
             Mutation::CreateTextNode { value, id } => {
-                let entity = BevyTemplateNode::from_dioxus(&TemplateNode::Text { text: value })
-                    .spawn(commands, parent_to_children, children_to_parent);
+                let entity =
+                    BevyTemplateNode::from_dioxus(&TemplateNode::Text { text: value }).spawn(world);
                 element_id_to_bevy_ui_entity.insert(id, entity);
                 bevy_ui_entity_to_element_id.insert(entity, id);
                 stack.push(entity);
@@ -72,26 +62,38 @@ pub fn apply_mutations(
             Mutation::HydrateText { path, value, id } => {
                 let mut entity = *stack.last().unwrap();
                 for index in path {
-                    entity = parent_to_children[&(entity, *index)];
+                    entity = world.entity(entity).get::<Children>().unwrap()[*index as usize];
                 }
-                commands
-                    .entity(entity)
+                world
+                    .entity_mut(entity)
                     .insert(Text::from_section(value, TextStyle::default()));
                 element_id_to_bevy_ui_entity.insert(id, entity);
                 bevy_ui_entity_to_element_id.insert(entity, id);
             }
             Mutation::LoadTemplate { name, index, id } => {
-                let entity = templates[name].roots[index].spawn(
-                    commands,
-                    parent_to_children,
-                    children_to_parent,
-                );
+                let entity = templates[name].roots[index].spawn(world);
                 element_id_to_bevy_ui_entity.insert(id, entity);
                 bevy_ui_entity_to_element_id.insert(entity, id);
                 stack.push(entity);
             }
             Mutation::ReplaceWith { id, m } => todo!(),
-            Mutation::ReplacePlaceholder { path, m } => todo!(),
+            Mutation::ReplacePlaceholder { path, m } => {
+                let mut existing = stack[stack.len() - m - 1];
+                for index in path {
+                    existing = world.entity(existing).get::<Children>().unwrap()[*index as usize];
+                }
+                let existing_parent = world.entity(existing).get::<Parent>().unwrap().get();
+                let mut existing_parent = world.entity_mut(existing_parent);
+                let existing_index = existing_parent
+                    .get::<Children>()
+                    .unwrap()
+                    .iter()
+                    .position(|child| *child == existing)
+                    .unwrap();
+                let new = stack.drain((stack.len() - m)..).collect::<Vec<Entity>>();
+                existing_parent.insert_children(existing_index, &new);
+                world.despawn(existing);
+            }
             Mutation::InsertAfter { id, m } => todo!(),
             Mutation::InsertBefore { id, m } => todo!(),
             Mutation::SetAttribute {
@@ -100,26 +102,21 @@ pub fn apply_mutations(
                 id,
                 ns: _,
             } => {
-                let entity = element_id_to_bevy_ui_entity[&id];
-                // TODO: The rest of Style
-                match (name, value) {
-                    ("background-color", BorrowedAttributeValue::Text(hex)) => {
-                        let color = Color::hex(hex).expect(&format!(
-                            "Encountered unsupported bevy_dioxus background-color `{hex}`."
-                        ));
-                        commands.add(modify_component_command::<BackgroundColor, _>(
-                            entity,
-                            move |background_color| background_color.0 = color,
-                        ));
-                    }
-                    (name, value) => {
+                let value = match value {
+                    BorrowedAttributeValue::Text(value) => value,
+                    value => {
                         panic!("Encountered unsupported bevy_dioxus attribute `{name}: {value:?}`.")
                     }
-                }
+                };
+                let (mut style, mut background_color) = world
+                    .query::<(&mut Style, &mut BackgroundColor)>()
+                    .get_mut(world, element_id_to_bevy_ui_entity[&id])
+                    .unwrap();
+                set_style_attribute(name, value, &mut style, &mut background_color);
             }
             Mutation::SetText { value, id } => {
-                commands
-                    .entity(element_id_to_bevy_ui_entity[&id])
+                world
+                    .entity_mut(element_id_to_bevy_ui_entity[&id])
                     .insert(Text::from_section(value, TextStyle::default()));
             }
             Mutation::NewEventListener { name, id: _ } => {
@@ -190,39 +187,26 @@ impl BevyTemplateNode {
         }
     }
 
-    fn spawn(
-        &self,
-        commands: &mut Commands,
-        parent_to_children: &mut HashMap<(Entity, u8), Entity>,
-        children_to_parent: &mut EntityHashMap<Entity, Entity>,
-    ) -> Entity {
+    fn spawn(&self, world: &mut World) -> Entity {
         match self {
             BevyTemplateNode::Node {
                 style: (style, background_color),
                 children,
             } => {
-                // TODO: Can probably use with_children() instead
                 let children = children
                     .iter()
-                    .map(|child| child.spawn(commands, parent_to_children, children_to_parent))
+                    .map(|child| child.spawn(world))
                     .collect::<Box<[_]>>();
-                let parent = commands
-                    .spawn((
-                        NodeBundle {
-                            style: style.clone(),
-                            ..default()
-                        },
-                        background_color.clone(),
-                    ))
+                world
+                    .spawn(NodeBundle {
+                        style: style.clone(),
+                        background_color: background_color.clone(),
+                        ..default()
+                    })
                     .push_children(&children)
-                    .id();
-                for (i, child) in children.iter().enumerate() {
-                    parent_to_children.insert((parent, i as u8), *child);
-                    children_to_parent.insert(*child, parent);
-                }
-                parent
+                    .id()
             }
-            Self::TextNode(text) => commands
+            Self::TextNode(text) => world
                 .spawn(TextBundle {
                     text: text.clone(),
                     ..default()
@@ -242,30 +226,31 @@ fn parse_style_attributes(attributes: &[TemplateAttribute]) -> (Style, Backgroun
             namespace: _,
         } = attribute
         {
-            // TODO: The rest of Style
-            match (*name, *value) {
-                ("display", "flex") => style.display = Display::Flex,
-                ("display", "grid") => style.display = Display::Grid,
-                ("display", "none") => style.display = Display::None,
-                ("position", "relative") => style.position_type = PositionType::Relative,
-                ("position", "absolute") => style.position_type = PositionType::Absolute,
-                ("flex-direction", "column") => style.flex_direction = FlexDirection::Column,
-                ("background-color", hex) => {
-                    background_color.0 = Color::hex(hex).expect(&format!(
-                        "Encountered unsupported bevy_dioxus background-color `{hex}`."
-                    ))
-                }
-                _ => panic!("Encountered unsupported bevy_dioxus attribute `{name}: {value}`."),
-            }
+            set_style_attribute(name, value, &mut style, &mut background_color);
         }
     }
     (style, background_color)
 }
 
-fn modify_component_command<C, F>(entity: Entity, f: F) -> impl FnOnce(&mut World) + Send + 'static
-where
-    C: Component,
-    F: FnOnce(&mut C) + Send + 'static,
-{
-    move |world: &mut World| (f)(&mut world.entity_mut(entity).get_mut::<C>().unwrap())
+fn set_style_attribute(
+    name: &str,
+    value: &str,
+    style: &mut Style,
+    background_color: &mut BackgroundColor,
+) {
+    // TODO: The rest of Style
+    match (name, value) {
+        ("display", "flex") => style.display = Display::Flex,
+        ("display", "grid") => style.display = Display::Grid,
+        ("display", "none") => style.display = Display::None,
+        ("position", "relative") => style.position_type = PositionType::Relative,
+        ("position", "absolute") => style.position_type = PositionType::Absolute,
+        ("flex-direction", "column") => style.flex_direction = FlexDirection::Column,
+        ("background-color", hex) => {
+            background_color.0 = Color::hex(hex).expect(&format!(
+                "Encountered unsupported bevy_dioxus background-color `{hex}`."
+            ))
+        }
+        _ => panic!("Encountered unsupported bevy_dioxus attribute `{name}: {value}`."),
+    }
 }
