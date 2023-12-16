@@ -1,7 +1,7 @@
 use crate::events::is_supported_event;
 use bevy::{
-    ecs::{entity::Entity, world::World},
-    hierarchy::{BuildWorldChildren, Children, Parent},
+    ecs::{entity::Entity, system::Command, world::World},
+    hierarchy::{BuildWorldChildren, Children, DespawnRecursive, Parent},
     prelude::default,
     render::color::Color,
     text::{Text, TextStyle},
@@ -90,7 +90,7 @@ pub fn apply_mutations(
                     .unwrap();
                 let new = stack.drain((stack.len() - m)..).collect::<Vec<Entity>>();
                 existing_parent.insert_children(existing_index, &new);
-                world.despawn(existing);
+                DespawnRecursive { entity: existing }.apply(world);
             }
             Mutation::InsertAfter { id, m } => todo!(),
             Mutation::InsertBefore { id, m } => todo!(),
