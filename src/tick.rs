@@ -9,7 +9,7 @@ use bevy::{
     ecs::{
         entity::Entity,
         query::With,
-        world::{unsafe_world_cell::UnsafeWorldCell, Mut, World},
+        world::{Mut, World},
     },
     hierarchy::Parent,
     prelude::{Deref, DerefMut},
@@ -30,7 +30,7 @@ pub fn tick_dioxus_ui(world: &mut World) {
         .collect();
 
     for root_entity in root_entities {
-        dispatch_ui_events(&ui_events, root_entity, world.as_unsafe_world_cell());
+        dispatch_ui_events(&ui_events, root_entity, world);
 
         schedule_ui_renders_from_ecs_subscriptions(root_entity, world);
 
@@ -57,29 +57,17 @@ fn run_deferred_systems(world: &mut World) {
 fn dispatch_ui_events(
     events: &Vec<(Entity, &str, Rc<dyn Any>)>,
     root_entity: Entity,
-    world_cell: UnsafeWorldCell,
+    world: &mut World,
 ) {
-    let mut ui_root = unsafe {
-        world_cell
-            .get_entity(root_entity)
-            .unwrap()
-            .get_mut::<DioxusUiRoot>()
-            .unwrap()
-    };
-
-    let get_parent = |entity| unsafe {
-        world_cell
-            .get_entity(entity)
-            .unwrap()
-            .get::<Parent>()
-            .unwrap()
-            .get()
-    };
+    let mut ui_root = world
+        .entity_mut(root_entity)
+        .take::<DioxusUiRoot>()
+        .unwrap();
 
     for (mut target, name, data) in events {
         let mut target_element_id = ui_root.bevy_ui_entity_to_element_id.get(&target).copied();
         while target_element_id.is_none() {
-            target = get_parent(target);
+            target = world.entity(target).get::<Parent>().unwrap().get();
             target_element_id = ui_root.bevy_ui_entity_to_element_id.get(&target).copied();
         }
 
@@ -90,6 +78,8 @@ fn dispatch_ui_events(
             true,
         );
     }
+
+    world.entity_mut(root_entity).insert(ui_root);
 }
 
 fn schedule_ui_renders_from_ecs_subscriptions(root_entity: Entity, world: &mut World) {
@@ -117,30 +107,39 @@ fn schedule_ui_renders_from_ecs_subscriptions(root_entity: Entity, world: &mut W
 }
 
 fn render_ui(root_entity: Entity, world: &mut World) {
-    virtual_dom
+    let mut ui_root = world
+        .entity_mut(root_entity)
+        .take::<DioxusUiRoot>()
+        .unwrap();
+
+    ui_root
+        .virtual_dom
+        .get()
         .base_scope()
         .provide_context(EcsContext { world });
 
-    if *needs_rebuild {
+    if ui_root.needs_rebuild {
         apply_mutations(
-            virtual_dom.rebuild(),
-            element_id_to_bevy_ui_entity,
-            bevy_ui_entity_to_element_id,
-            templates,
+            ui_root.virtual_dom.get().rebuild(),
+            &mut ui_root.element_id_to_bevy_ui_entity,
+            &mut ui_root.bevy_ui_entity_to_element_id,
+            &mut ui_root.templates,
             root_entity,
             world,
         );
-        *needs_rebuild = false;
+        ui_root.needs_rebuild = false;
     }
 
     apply_mutations(
-        virtual_dom.render_immediate(),
-        element_id_to_bevy_ui_entity,
-        bevy_ui_entity_to_element_id,
-        templates,
+        ui_root.virtual_dom.get().render_immediate(),
+        &mut ui_root.element_id_to_bevy_ui_entity,
+        &mut ui_root.bevy_ui_entity_to_element_id,
+        &mut ui_root.templates,
         root_entity,
         world,
     );
+
+    world.entity_mut(root_entity).insert(ui_root);
 }
 
 #[derive(Deref, DerefMut)]
