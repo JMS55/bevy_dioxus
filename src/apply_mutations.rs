@@ -4,9 +4,10 @@ use bevy::{
     hierarchy::{BuildWorldChildren, Children, DespawnRecursive, Parent},
     prelude::default,
     render::color::Color,
-    text::{Text, TextStyle},
+    text::{Text, TextLayoutInfo, TextStyle},
     ui::{
         node_bundles::{NodeBundle, TextBundle},
+        widget::TextFlags,
         *,
     },
     utils::{EntityHashMap, HashMap},
@@ -62,9 +63,12 @@ pub fn apply_mutations(
                 for index in path {
                     entity = world.entity(entity).get::<Children>().unwrap()[*index as usize];
                 }
-                world
-                    .entity_mut(entity)
-                    .insert(Text::from_section(value, TextStyle::default()));
+                world.entity_mut(entity).insert((
+                    Text::from_section(value, TextStyle::default()),
+                    TextLayoutInfo::default(),
+                    TextFlags::default(),
+                    ContentSize::default(),
+                ));
                 element_id_to_bevy_ui_entity.insert(id, entity);
                 bevy_ui_entity_to_element_id.insert(entity, id);
             }
@@ -93,6 +97,7 @@ pub fn apply_mutations(
                 existing_parent.insert_children(existing_index, &new);
 
                 DespawnRecursive { entity: existing }.apply(world);
+                // TODO: We're not removing child entities from the element maps
                 if let Some(existing_element_id) = bevy_ui_entity_to_element_id.remove(&existing) {
                     element_id_to_bevy_ui_entity.remove(&existing_element_id);
                 }
@@ -182,7 +187,7 @@ impl BevyTemplateNode {
                 Self::TextNode(Text::from_section(*text, TextStyle::default()))
             }
             TemplateNode::Dynamic { id: _ } => Self::Node {
-                style: Default::default(),
+                style: (Style::default(), Color::NONE.into()),
                 children: Box::new([]),
             },
             TemplateNode::DynamicText { id: _ } => {

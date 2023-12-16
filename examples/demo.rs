@@ -26,6 +26,7 @@ fn main() {
 
 #[component]
 fn Editor(cx: Scope) -> Element {
+    // TODO: When selected entity is despawned, need to reset this to None
     let selected_entity = use_state(cx, || Option::<Entity>::None);
 
     render! {
@@ -43,6 +44,7 @@ fn SceneTree<'a>(cx: Scope, selected_entity: &'a UseState<Option<Entity>>) -> El
 
     render! {
         div {
+            onclick: move |_| selected_entity.set(None),
             flex_direction: "column",
             if entities.is_empty() {
                 rsx! { "No entities exist" }
