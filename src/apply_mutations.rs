@@ -93,8 +93,9 @@ pub fn apply_mutations(
                 existing_parent.insert_children(existing_index, &new);
 
                 DespawnRecursive { entity: existing }.apply(world);
-                let existing_element_id = bevy_ui_entity_to_element_id.remove(&existing).unwrap();
-                element_id_to_bevy_ui_entity.remove(&existing_element_id);
+                if let Some(existing_element_id) = bevy_ui_entity_to_element_id.remove(&existing) {
+                    element_id_to_bevy_ui_entity.remove(&existing_element_id);
+                }
             }
             Mutation::InsertAfter { id, m } => todo!(),
             Mutation::InsertBefore { id, m } => todo!(),
