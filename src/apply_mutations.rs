@@ -222,7 +222,7 @@ impl BevyTemplateNode {
 
 fn parse_style_attributes(attributes: &[TemplateAttribute]) -> (Style, BackgroundColor) {
     let mut style = Style::default();
-    let mut background_color = BackgroundColor::default();
+    let mut background_color = Color::NONE.into();
     for attribute in attributes {
         if let TemplateAttribute::Static {
             name,
