@@ -45,9 +45,7 @@ pub fn apply_mutations(
             }
             Mutation::AssignId { path, id } => todo!(),
             Mutation::CreatePlaceholder { id } => {
-                let entity = world
-                    .spawn((NodeBundle::default(), BackgroundColor::default()))
-                    .id();
+                let entity = world.spawn(NodeBundle::default()).id();
                 element_id_to_bevy_ui_entity.insert(id, entity);
                 bevy_ui_entity_to_element_id.insert(entity, id);
                 stack.push(entity);
