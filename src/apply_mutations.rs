@@ -82,6 +82,7 @@ pub fn apply_mutations(
                 }
                 let existing_parent = world.entity(existing).get::<Parent>().unwrap().get();
                 let mut existing_parent = world.entity_mut(existing_parent);
+
                 let existing_index = existing_parent
                     .get::<Children>()
                     .unwrap()
@@ -90,6 +91,7 @@ pub fn apply_mutations(
                     .unwrap();
                 let new = stack.drain((stack.len() - m)..).collect::<Vec<Entity>>();
                 existing_parent.insert_children(existing_index, &new);
+
                 DespawnRecursive { entity: existing }.apply(world);
                 let existing_element_id = bevy_ui_entity_to_element_id.remove(&existing).unwrap();
                 element_id_to_bevy_ui_entity.remove(&existing_element_id);
@@ -108,6 +110,7 @@ pub fn apply_mutations(
                         panic!("Encountered unsupported bevy_dioxus attribute `{name}: {value:?}`.")
                     }
                 };
+
                 let (mut style, mut background_color) = world
                     .query::<(&mut Style, &mut BackgroundColor)>()
                     .get_mut(world, element_id_to_bevy_ui_entity[&id])
