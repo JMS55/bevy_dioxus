@@ -2,7 +2,7 @@ use bevy::{
     app::{App, Startup},
     core::{DebugName, Name},
     core_pipeline::core_2d::Camera2dBundle,
-    ecs::{entity::Entity, query::Without, system::Commands},
+    ecs::{entity::Entity, query::Without, system::Commands, world::World},
     ui::{node_bundles::NodeBundle, Node},
     DefaultPlugins,
 };
@@ -47,6 +47,10 @@ fn SceneTree<'a>(cx: Scope, selected_entity: &'a UseState<Option<Entity>>) -> El
     let mut entities = entities.into_iter().collect::<Vec<_>>();
     entities.sort_by_key(|(entity, _)| *entity);
 
+    let spawn_entity = use_system(cx, |world: &mut World| {
+        world.spawn_empty();
+    });
+
     render! {
         div {
             onclick: move |_| selected_entity.set(None),
@@ -67,6 +71,12 @@ fn SceneTree<'a>(cx: Scope, selected_entity: &'a UseState<Option<Entity>>) -> El
                         }
                     }
                 }
+            }
+            div {
+                onclick: move |_| spawn_entity(),
+                padding: "8",
+                background_color: NEUTRAL_800,
+                "Spawn Entity"
             }
         }
     }

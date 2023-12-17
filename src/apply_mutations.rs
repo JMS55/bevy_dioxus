@@ -44,7 +44,14 @@ pub fn apply_mutations(
                     parent.add_child(child);
                 }
             }
-            Mutation::AssignId { path, id } => todo!(),
+            Mutation::AssignId { path, id } => {
+                let mut entity = *stack.last().unwrap();
+                for index in path {
+                    entity = world.entity(entity).get::<Children>().unwrap()[*index as usize];
+                }
+                element_id_to_bevy_ui_entity.insert(id, entity);
+                bevy_ui_entity_to_element_id.insert(entity, id);
+            }
             Mutation::CreatePlaceholder { id } => {
                 let entity = world.spawn(NodeBundle::default()).id();
                 element_id_to_bevy_ui_entity.insert(id, entity);
@@ -102,7 +109,20 @@ pub fn apply_mutations(
                     element_id_to_bevy_ui_entity.remove(&existing_element_id);
                 }
             }
-            Mutation::InsertAfter { id, m } => todo!(),
+            Mutation::InsertAfter { id, m } => {
+                let entity = element_id_to_bevy_ui_entity[&id];
+                let parent = world.entity(entity).get::<Parent>().unwrap().get();
+                let mut parent = world.entity_mut(parent);
+
+                let index = parent
+                    .get::<Children>()
+                    .unwrap()
+                    .iter()
+                    .position(|child| *child == entity)
+                    .unwrap();
+                let new = stack.drain((stack.len() - m)..).collect::<Vec<Entity>>();
+                parent.insert_children(index + 1, &new);
+            }
             Mutation::InsertBefore { id, m } => todo!(),
             Mutation::SetAttribute {
                 name,
