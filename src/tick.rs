@@ -81,17 +81,16 @@ fn dispatch_ui_events(
 }
 
 fn schedule_ui_renders_from_ecs_subscriptions(ui_root: &mut UiRoot, world: &World) {
-    let schedule_update = ui_root.virtual_dom.base_scope().schedule_update_any();
     let ecs_subscriptions = world.resource::<EcsSubscriptions>();
 
     for scope_id in &*ecs_subscriptions.world_and_queries {
-        schedule_update(*scope_id);
+        ui_root.virtual_dom.mark_dirty(*scope_id);
     }
 
     for (resource_id, scope_ids) in &*ecs_subscriptions.resources {
         if world.is_resource_changed_by_id(*resource_id) {
             for scope_id in scope_ids {
-                schedule_update(*scope_id);
+                ui_root.virtual_dom.mark_dirty(*scope_id);
             }
         }
     }
