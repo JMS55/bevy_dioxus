@@ -1,6 +1,6 @@
 use bevy::{
     app::{App, Startup},
-    core::DebugName,
+    core::{DebugName, Name},
     core_pipeline::core_2d::Camera2dBundle,
     ecs::{entity::Entity, query::Without, system::Commands},
     ui::{node_bundles::NodeBundle, Node},
@@ -19,7 +19,7 @@ fn main() {
                 dioxus_ui_root: DioxusUiRoot(Editor),
                 node_bundle: NodeBundle::default(),
             });
-            commands.spawn(Camera2dBundle::default());
+            commands.spawn((Camera2dBundle::default(), Name::new("Camera")));
         })
         .run();
 }
@@ -58,9 +58,12 @@ fn SceneTree<'a>(cx: Scope, selected_entity: &'a UseState<Option<Entity>>) -> El
                     for (entity, name) in entities {
                         div {
                             onclick: move |_| selected_entity.set(Some(entity)),
-                            padding: "12",
+                            padding: "8",
                             background_color: if Some(entity) == ***selected_entity { INDIGO_600 } else { NEUTRAL_800 },
-                            format!("{name:?}")
+                            match name.name {
+                                Some(name) => format!("{name}"),
+                                _ => format!("Entity ({:?})", name.entity)
+                            }
                         }
                     }
                 }
