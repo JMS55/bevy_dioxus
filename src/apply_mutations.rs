@@ -85,7 +85,27 @@ pub fn apply_mutations(
                 bevy_ui_entity_to_element_id.insert(entity, id);
                 stack.push(entity);
             }
-            Mutation::ReplaceWith { id, m } => todo!(),
+            Mutation::ReplaceWith { id, m } => {
+                let new_nodes = stack.split_off(stack.len() - m);
+                let existing = element_id_to_bevy_ui_entity[&id];
+
+                // here we insert before the old entity that's going to be removed after
+                let parent = world.entity(existing).get::<Parent>().unwrap().get();
+                let mut parent = world.entity_mut(parent);
+                let index = parent
+                    .get::<Children>()
+                    .unwrap()
+                    .iter()
+                    .position(|child| *child == existing)
+                    .unwrap();
+                parent.insert_children(index, &new_nodes);
+
+                DespawnRecursive { entity: existing }.apply(world);
+                // TODO: We're not removing child entities from the element maps
+                if let Some(existing_element_id) = bevy_ui_entity_to_element_id.remove(&existing) {
+                    element_id_to_bevy_ui_entity.remove(&existing_element_id);
+                } 
+            },
             Mutation::ReplacePlaceholder { path, m } => {
                 let mut existing = stack[stack.len() - m - 1];
                 for index in path {
@@ -107,7 +127,7 @@ pub fn apply_mutations(
                 // TODO: We're not removing child entities from the element maps
                 if let Some(existing_element_id) = bevy_ui_entity_to_element_id.remove(&existing) {
                     element_id_to_bevy_ui_entity.remove(&existing_element_id);
-                }
+                } 
             }
             Mutation::InsertAfter { id, m } => {
                 let entity = element_id_to_bevy_ui_entity[&id];
@@ -123,7 +143,20 @@ pub fn apply_mutations(
                 let new = stack.drain((stack.len() - m)..).collect::<Vec<Entity>>();
                 parent.insert_children(index + 1, &new);
             }
-            Mutation::InsertBefore { id, m } => todo!(),
+            Mutation::InsertBefore { id, m } => {
+                let new_nodes = stack.split_off(stack.len() - m);
+                let existing = element_id_to_bevy_ui_entity[&id];
+
+                let parent = world.entity(existing).get::<Parent>().unwrap().get();
+                let mut parent = world.entity_mut(parent);
+                let index = parent
+                    .get::<Children>()
+                    .unwrap()
+                    .iter()
+                    .position(|child| *child == existing)
+                    .unwrap();
+                parent.insert_children(index, &new_nodes);
+            }
             Mutation::SetAttribute {
                 name,
                 value,
@@ -154,7 +187,17 @@ pub fn apply_mutations(
                 }
             }
             Mutation::RemoveEventListener { .. } => {}
-            Mutation::Remove { id } => todo!(),
+            Mutation::Remove { id } => {
+                let existing = element_id_to_bevy_ui_entity[&id];
+                DespawnRecursive {
+                    entity: existing,
+                }
+                .apply(world);
+                // TODO: We're not removing child entities from the element maps
+                if let Some(existing_element_id) = bevy_ui_entity_to_element_id.remove(&existing) {
+                    element_id_to_bevy_ui_entity.remove(&existing_element_id);
+                }
+            }
             Mutation::PushRoot { id } => stack.push(element_id_to_bevy_ui_entity[&id]),
         }
     }
