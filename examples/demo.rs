@@ -61,7 +61,13 @@ fn SceneTree<'a>(cx: Scope, selected_entity: &'a UseState<Option<Entity>>) -> El
                 rsx! {
                     for (entity, name) in entities {
                         div {
-                            onclick: move |_| selected_entity.set(Some(entity)),
+                            onclick: move |_| {
+                                if Some(entity) == ***selected_entity {
+                                    selected_entity.set(None);
+                                    return;
+                                }
+                                selected_entity.set(Some(entity));
+                            },
                             padding: "8",
                             background_color: if Some(entity) == ***selected_entity { INDIGO_600 } else { NEUTRAL_800 },
                             match name.name {
@@ -84,11 +90,45 @@ fn SceneTree<'a>(cx: Scope, selected_entity: &'a UseState<Option<Entity>>) -> El
 
 #[component]
 fn EntityInspector<'a>(cx: Scope, selected_entity: &'a UseState<Option<Entity>>) -> Element {
+    let world = use_world(cx);
+
+    let components = if let Some(selected_entity) = selected_entity.get() {
+        let entity_ref = world.get_entity(*selected_entity).unwrap();
+        let archetype = entity_ref.archetype();
+        let mut components = archetype.components().map(|component_id| {
+            let info = world.components().get_info(component_id).unwrap();
+            let name = info.name();
+
+            (name, component_id, info.type_id(), info.layout().size())
+        }).collect::<Vec<_>>();
+        components.sort_by(|(name_a, ..), (name_b, ..)| name_a.cmp(name_b));
+        components
+    } else {
+        vec![]
+    };
+
     render! {
         if selected_entity.is_none() {
-            "Select an entity to view its components"
+            rsx! {
+                "Select an entity to view its components!!!"
+            }
         } else {
-            "TODO: Component widgets"
+            rsx! {
+                div {
+                    flex_direction: "column",
+                    for (name, component_id, type_id, size) in components {
+                        div {
+                            padding: "8",
+                            background_color: NEUTRAL_800,
+                            
+                            div {
+                                "Component: {name}"
+                            }
+                        }
+                    }
+                }
+                
+            }
         }
     }
 }
