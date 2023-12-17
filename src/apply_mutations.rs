@@ -257,9 +257,38 @@ fn set_style_attribute(
         ("flex-direction", "column") => style.flex_direction = FlexDirection::Column,
         ("background-color", hex) => {
             background_color.0 = Color::hex(hex).expect(&format!(
-                "Encountered unsupported bevy_dioxus background-color `{hex}`."
+                "Encountered unsupported bevy_dioxus hex Color `{hex}`."
             ))
         }
+        ("padding", val) => style.padding = UiRect::all(parse_val(val)),
+        ("width", val) => style.width = parse_val(val),
+        ("height", val) => style.height = parse_val(val),
+        ("justify-content", "space-between") => {
+            style.justify_content = JustifyContent::SpaceBetween;
+        }
+        ("align-content", "space-between") => style.align_content = AlignContent::SpaceBetween,
         _ => panic!("Encountered unsupported bevy_dioxus attribute `{name}: {value}`."),
     }
+}
+
+fn parse_val(val: &str) -> Val {
+    if let Ok(val) = val.parse::<f32>() {
+        return Val::Px(val);
+    }
+    if let Some((val, "")) = val.split_once("px") {
+        if let Ok(val) = val.parse::<f32>() {
+            return Val::Px(val);
+        }
+    }
+    if let Some((val, "")) = val.split_once("vw") {
+        if let Ok(val) = val.parse::<f32>() {
+            return Val::Vw(val);
+        }
+    }
+    if let Some((val, "")) = val.split_once("vh") {
+        if let Ok(val) = val.parse::<f32>() {
+            return Val::Vh(val);
+        }
+    }
+    panic!("Encountered unsupported bevy_dioxus Val `{val}`.");
 }

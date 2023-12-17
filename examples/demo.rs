@@ -30,8 +30,13 @@ fn Editor(cx: Scope) -> Element {
     let selected_entity = use_state(cx, || Option::<Entity>::None);
 
     render! {
-        SceneTree { selected_entity: selected_entity }
-        EntityInspector { selected_entity: selected_entity }
+        div {
+            width: "100vw",
+            height: "100vh",
+            justify_content: "space-between",
+            SceneTree { selected_entity: selected_entity }
+            EntityInspector { selected_entity: selected_entity }
+        }
     }
 }
 
@@ -53,6 +58,7 @@ fn SceneTree<'a>(cx: Scope, selected_entity: &'a UseState<Option<Entity>>) -> El
                     for (entity, name) in entities {
                         div {
                             onclick: move |_| selected_entity.set(Some(entity)),
+                            padding: "12",
                             background_color: if Some(entity) == ***selected_entity { INDIGO_600 } else { NEUTRAL_800 },
                             format!("{name:?}")
                         }
