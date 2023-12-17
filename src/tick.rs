@@ -1,9 +1,6 @@
 use crate::{
-    apply_mutations::apply_mutations,
-    deferred_system::DeferredSystemRegistry,
-    events::EventReaders,
-    hooks::{EcsContext, EcsSubscriptions},
-    DioxusUiRoot, UiRoot, UiRoots,
+    apply_mutations::apply_mutations, deferred_system::DeferredSystemRegistry,
+    events::EventReaders, hooks::EcsContext, DioxusUiRoot, UiContext, UiRoot,
 };
 use bevy::{
     ecs::{
@@ -28,7 +25,7 @@ pub fn tick_dioxus_ui(world: &mut World) {
         .iter(world)
         .map(|(entity, ui_root)| (entity, *ui_root))
         .collect();
-    let mut ui_roots = mem::take(&mut world.non_send_resource_mut::<UiRoots>().0);
+    let mut ui_roots = mem::take(&mut world.non_send_resource_mut::<UiContext>().roots);
 
     for (root_entity, dioxus_ui_root) in root_entities {
         let mut ui_root = ui_roots
@@ -42,7 +39,8 @@ pub fn tick_dioxus_ui(world: &mut World) {
         render_ui(root_entity, &mut ui_root, world);
 
         world
-            .non_send_resource_mut::<UiRoots>()
+            .non_send_resource_mut::<UiContext>()
+            .roots
             .insert((root_entity, dioxus_ui_root), ui_root);
     }
 }
@@ -82,7 +80,7 @@ fn dispatch_ui_events(
 }
 
 fn schedule_ui_renders_from_ecs_subscriptions(ui_root: &mut UiRoot, world: &World) {
-    let ecs_subscriptions = world.resource::<EcsSubscriptions>();
+    let ecs_subscriptions = &world.non_send_resource::<UiContext>().subscriptions;
 
     for scope_id in &*ecs_subscriptions.world_and_queries {
         ui_root.virtual_dom.mark_dirty(*scope_id);

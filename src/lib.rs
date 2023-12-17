@@ -12,7 +12,7 @@ use self::{
 use bevy::{
     app::{App, Plugin, Update},
     ecs::{bundle::Bundle, component::Component, entity::Entity},
-    prelude::{Deref, DerefMut},
+    prelude::Deref,
     ui::node_bundles::NodeBundle,
     utils::{EntityHashMap, HashMap},
 };
@@ -25,9 +25,7 @@ pub struct DioxusUiPlugin;
 
 impl Plugin for DioxusUiPlugin {
     fn build(&self, app: &mut App) {
-        // TODO: I think UiRoots must be dropped only after EcsSubscriptions
-        app.init_non_send_resource::<UiRoots>()
-            .init_resource::<EcsSubscriptions>()
+        app.init_non_send_resource::<UiContext>()
             .init_resource::<DeferredSystemRegistry>()
             .init_resource::<EventReaders>()
             .add_systems(Update, tick_dioxus_ui);
@@ -43,8 +41,11 @@ pub struct DioxusUiBundle {
 #[derive(Component, Deref, Hash, PartialEq, Eq, Clone, Copy)]
 pub struct DioxusUiRoot(pub fn(Scope) -> Element);
 
-#[derive(Deref, DerefMut, Default)]
-struct UiRoots(HashMap<(Entity, DioxusUiRoot), UiRoot>);
+#[derive(Default)]
+struct UiContext {
+    roots: HashMap<(Entity, DioxusUiRoot), UiRoot>,
+    subscriptions: EcsSubscriptions,
+}
 
 struct UiRoot {
     virtual_dom: VirtualDom,

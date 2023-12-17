@@ -1,4 +1,4 @@
-use crate::deferred_system::new_deferred_system;
+use crate::{deferred_system::new_deferred_system, UiContext};
 use bevy::{
     ecs::{
         component::ComponentId,
@@ -13,7 +13,7 @@ use dioxus::{
     hooks::use_on_destroy,
 };
 
-#[derive(Resource, Default)]
+#[derive(Default)]
 pub(crate) struct EcsSubscriptions {
     pub resources: Box<HashMap<ComponentId, HashSet<ScopeId>>>,
     pub world_and_queries: Box<HashSet<ScopeId>>,
@@ -40,7 +40,10 @@ pub fn use_world<'a>(cx: &'a ScopeState) -> &'a World {
 
     let scope_id = cx.scope_id();
     let subscription_manager = *cx.use_hook(|| {
-        let subscription_manager = &mut world.resource_mut::<EcsSubscriptions>().world_and_queries;
+        let subscription_manager = &mut world
+            .non_send_resource_mut::<UiContext>()
+            .subscriptions
+            .world_and_queries;
         subscription_manager.insert(scope_id);
         Box::as_mut(subscription_manager) as *mut HashSet<ScopeId>
     });
@@ -57,7 +60,10 @@ pub fn use_resource<'a, T: Resource>(cx: &'a ScopeState) -> &'a T {
     let resource_id = world.components().resource_id::<T>().unwrap();
     let scope_id = cx.scope_id();
     let subscription_manager = *cx.use_hook(|| {
-        let subscription_manager = &mut world.resource_mut::<EcsSubscriptions>().resources;
+        let subscription_manager = &mut world
+            .non_send_resource_mut::<UiContext>()
+            .subscriptions
+            .resources;
         subscription_manager
             .entry(resource_id)
             .or_default()
@@ -92,7 +98,10 @@ where
 
     let scope_id = cx.scope_id();
     let subscription_manager = *cx.use_hook(|| {
-        let subscription_manager = &mut world.resource_mut::<EcsSubscriptions>().world_and_queries;
+        let subscription_manager = &mut world
+            .non_send_resource_mut::<UiContext>()
+            .subscriptions
+            .world_and_queries;
         subscription_manager.insert(scope_id);
         Box::as_mut(subscription_manager) as *mut HashSet<ScopeId>
     });
