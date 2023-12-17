@@ -25,6 +25,7 @@ pub struct DioxusUiPlugin;
 
 impl Plugin for DioxusUiPlugin {
     fn build(&self, app: &mut App) {
+        // TODO: I think UiRoots must be dropped only after EcsSubscriptions
         app.init_non_send_resource::<UiRoots>()
             .init_resource::<EcsSubscriptions>()
             .init_resource::<DeferredSystemRegistry>()
