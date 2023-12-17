@@ -86,26 +86,24 @@ pub fn apply_mutations(
                 stack.push(entity);
             }
             Mutation::ReplaceWith { id, m } => {
-                let new_nodes = stack.split_off(stack.len() - m);
                 let existing = element_id_to_bevy_ui_entity[&id];
+                let existing_parent = world.entity(existing).get::<Parent>().unwrap().get();
+                let mut existing_parent = world.entity_mut(existing_parent);
 
-                // here we insert before the old entity that's going to be removed after
-                let parent = world.entity(existing).get::<Parent>().unwrap().get();
-                let mut parent = world.entity_mut(parent);
-                let index = parent
+                let existing_index = existing_parent
                     .get::<Children>()
                     .unwrap()
                     .iter()
                     .position(|child| *child == existing)
                     .unwrap();
-                parent.insert_children(index, &new_nodes);
+                existing_parent.insert_children(existing_index, &stack.split_off(stack.len() - m));
 
                 DespawnRecursive { entity: existing }.apply(world);
                 // TODO: We're not removing child entities from the element maps
                 if let Some(existing_element_id) = bevy_ui_entity_to_element_id.remove(&existing) {
                     element_id_to_bevy_ui_entity.remove(&existing_element_id);
-                } 
-            },
+                }
+            }
             Mutation::ReplacePlaceholder { path, m } => {
                 let mut existing = stack[stack.len() - m - 1];
                 for index in path {
@@ -120,33 +118,28 @@ pub fn apply_mutations(
                     .iter()
                     .position(|child| *child == existing)
                     .unwrap();
-                let new = stack.drain((stack.len() - m)..).collect::<Vec<Entity>>();
-                existing_parent.insert_children(existing_index, &new);
+                existing_parent.insert_children(existing_index, &stack.split_off(stack.len() - m));
 
                 DespawnRecursive { entity: existing }.apply(world);
                 // TODO: We're not removing child entities from the element maps
                 if let Some(existing_element_id) = bevy_ui_entity_to_element_id.remove(&existing) {
                     element_id_to_bevy_ui_entity.remove(&existing_element_id);
-                } 
+                }
             }
             Mutation::InsertAfter { id, m } => {
                 let entity = element_id_to_bevy_ui_entity[&id];
                 let parent = world.entity(entity).get::<Parent>().unwrap().get();
                 let mut parent = world.entity_mut(parent);
-
                 let index = parent
                     .get::<Children>()
                     .unwrap()
                     .iter()
                     .position(|child| *child == entity)
                     .unwrap();
-                let new = stack.drain((stack.len() - m)..).collect::<Vec<Entity>>();
-                parent.insert_children(index + 1, &new);
+                parent.insert_children(index + 1, &stack.split_off(stack.len() - m));
             }
             Mutation::InsertBefore { id, m } => {
-                let new_nodes = stack.split_off(stack.len() - m);
                 let existing = element_id_to_bevy_ui_entity[&id];
-
                 let parent = world.entity(existing).get::<Parent>().unwrap().get();
                 let mut parent = world.entity_mut(parent);
                 let index = parent
@@ -155,7 +148,7 @@ pub fn apply_mutations(
                     .iter()
                     .position(|child| *child == existing)
                     .unwrap();
-                parent.insert_children(index, &new_nodes);
+                parent.insert_children(index, &stack.split_off(stack.len() - m));
             }
             Mutation::SetAttribute {
                 name,
@@ -188,13 +181,10 @@ pub fn apply_mutations(
             }
             Mutation::RemoveEventListener { .. } => {}
             Mutation::Remove { id } => {
-                let existing = element_id_to_bevy_ui_entity[&id];
-                DespawnRecursive {
-                    entity: existing,
-                }
-                .apply(world);
+                let entity = element_id_to_bevy_ui_entity[&id];
+                DespawnRecursive { entity }.apply(world);
                 // TODO: We're not removing child entities from the element maps
-                if let Some(existing_element_id) = bevy_ui_entity_to_element_id.remove(&existing) {
+                if let Some(existing_element_id) = bevy_ui_entity_to_element_id.remove(&entity) {
                     element_id_to_bevy_ui_entity.remove(&existing_element_id);
                 }
             }

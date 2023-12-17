@@ -64,9 +64,9 @@ fn SceneTree<'a>(cx: Scope, selected_entity: &'a UseState<Option<Entity>>) -> El
                             onclick: move |_| {
                                 if Some(entity) == ***selected_entity {
                                     selected_entity.set(None);
-                                    return;
+                                } else {
+                                    selected_entity.set(Some(entity));
                                 }
-                                selected_entity.set(Some(entity));
                             },
                             padding: "8",
                             background_color: if Some(entity) == ***selected_entity { INDIGO_600 } else { NEUTRAL_800 },
@@ -95,12 +95,15 @@ fn EntityInspector<'a>(cx: Scope, selected_entity: &'a UseState<Option<Entity>>)
     let components = if let Some(selected_entity) = selected_entity.get() {
         let entity_ref = world.get_entity(*selected_entity).unwrap();
         let archetype = entity_ref.archetype();
-        let mut components = archetype.components().map(|component_id| {
-            let info = world.components().get_info(component_id).unwrap();
-            let name = info.name();
+        let mut components = archetype
+            .components()
+            .map(|component_id| {
+                let info = world.components().get_info(component_id).unwrap();
+                let name = info.name();
 
-            (name, component_id, info.type_id(), info.layout().size())
-        }).collect::<Vec<_>>();
+                (name, component_id, info.type_id(), info.layout().size())
+            })
+            .collect::<Vec<_>>();
         components.sort_by(|(name_a, ..), (name_b, ..)| name_a.cmp(name_b));
         components
     } else {
@@ -110,24 +113,24 @@ fn EntityInspector<'a>(cx: Scope, selected_entity: &'a UseState<Option<Entity>>)
     render! {
         if selected_entity.is_none() {
             rsx! {
-                "Select an entity to view its components!!!"
+                "Select an entity to view its components"
             }
         } else {
             rsx! {
                 div {
                     flex_direction: "column",
-                    for (name, component_id, type_id, size) in components {
+                    for (name, _component_id, _type_id, _size) in components {
                         div {
                             padding: "8",
                             background_color: NEUTRAL_800,
-                            
+
                             div {
                                 "Component: {name}"
                             }
                         }
                     }
                 }
-                
+
             }
         }
     }
