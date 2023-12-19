@@ -80,7 +80,10 @@ fn SceneTree<'a>(cx: Scope, selected_entity: &'a UseState<Option<Entity>>) -> El
                 onclick: move |_| spawn_entity(),
                 padding: "8",
                 background_color: NEUTRAL_800,
-                "Spawn Entity"
+                text {
+                    text: "Spawn Entity",
+                    font_size: "18"
+                }
             }
         }
     }

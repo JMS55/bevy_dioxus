@@ -4,7 +4,7 @@ use bevy::{
     hierarchy::{BuildWorldChildren, Children, DespawnRecursive, Parent},
     prelude::default,
     render::color::Color,
-    text::{Text, TextLayoutInfo, TextStyle},
+    text::{Text, TextAlignment, TextLayoutInfo, TextStyle},
     ui::{
         node_bundles::{NodeBundle, TextBundle},
         widget::TextFlags,
@@ -163,11 +163,18 @@ pub fn apply_mutations(
                     }
                 };
 
-                let (mut style, mut background_color) = world
-                    .query::<(&mut Style, &mut BackgroundColor)>()
+                let (mut style, mut background_color, mut text) = world
+                    .query::<(&mut Style, &mut BackgroundColor, Option<&mut Text>)>()
                     .get_mut(world, element_id_to_bevy_ui_entity[&id])
                     .unwrap();
-                set_style_attribute(name, value, &mut style, &mut background_color);
+
+                set_attribute(
+                    name,
+                    value,
+                    &mut style,
+                    &mut background_color,
+                    text.as_deref_mut(),
+                );
             }
             Mutation::SetText { value, id } => {
                 world
@@ -202,7 +209,12 @@ enum BevyTemplateNode {
         style: (Style, BackgroundColor),
         children: Box<[Self]>,
     },
-    TextNode(Text),
+    TextNode {
+        text: Text,
+        style: (Style, BackgroundColor),
+        children: Box<[Self]>,
+    },
+    IntrinsicTextNode(Text),
 }
 
 impl BevyTemplate {
@@ -225,19 +237,35 @@ impl BevyTemplateNode {
                 namespace: Some("bevy_ui"),
                 attrs,
                 children,
-            } => Self::Node {
-                style: parse_style_attributes(attrs),
-                children: children.iter().map(Self::from_dioxus).collect(),
-            },
+            } => {
+                let (style, background_color, _) = parse_template_attributes(attrs);
+                Self::Node {
+                    style: (style, background_color),
+                    children: children.iter().map(Self::from_dioxus).collect(),
+                }
+            }
+            TemplateNode::Element {
+                tag: "text",
+                namespace: Some("bevy_ui"),
+                attrs,
+                children,
+            } => {
+                let (style, background_color, text) = parse_template_attributes(attrs);
+                Self::TextNode {
+                    text,
+                    style: (style, background_color),
+                    children: children.iter().map(Self::from_dioxus).collect(),
+                }
+            }
             TemplateNode::Text { text } => {
-                Self::TextNode(Text::from_section(*text, TextStyle::default()))
+                Self::IntrinsicTextNode(Text::from_section(*text, TextStyle::default()))
             }
             TemplateNode::Dynamic { id: _ } => Self::Node {
                 style: (Style::default(), Color::NONE.into()),
                 children: Box::new([]),
             },
             TemplateNode::DynamicText { id: _ } => {
-                Self::TextNode(Text::from_section("", TextStyle::default()))
+                Self::IntrinsicTextNode(Text::from_section("", TextStyle::default()))
             }
             TemplateNode::Element {
                 tag,
@@ -275,7 +303,26 @@ impl BevyTemplateNode {
                     .push_children(&children)
                     .id()
             }
-            Self::TextNode(text) => world
+            BevyTemplateNode::TextNode {
+                text,
+                style: (style, background_color),
+                children,
+            } => {
+                let children = children
+                    .iter()
+                    .map(|child| child.spawn(world))
+                    .collect::<Box<[_]>>();
+                world
+                    .spawn(TextBundle {
+                        text: text.clone(),
+                        style: style.clone(),
+                        background_color: background_color.clone(),
+                        ..default()
+                    })
+                    .push_children(&children)
+                    .id()
+            }
+            Self::IntrinsicTextNode(text) => world
                 .spawn(TextBundle {
                     text: text.clone(),
                     ..default()
@@ -285,9 +332,10 @@ impl BevyTemplateNode {
     }
 }
 
-fn parse_style_attributes(attributes: &[TemplateAttribute]) -> (Style, BackgroundColor) {
+fn parse_template_attributes(attributes: &[TemplateAttribute]) -> (Style, BackgroundColor, Text) {
     let mut style = Style::default();
     let mut background_color = Color::NONE.into();
+    let mut text = Text::from_section("", TextStyle::default());
     for attribute in attributes {
         if let TemplateAttribute::Static {
             name,
@@ -295,17 +343,24 @@ fn parse_style_attributes(attributes: &[TemplateAttribute]) -> (Style, Backgroun
             namespace: _,
         } = attribute
         {
-            set_style_attribute(name, value, &mut style, &mut background_color);
+            set_attribute(
+                name,
+                value,
+                &mut style,
+                &mut background_color,
+                Some(&mut text),
+            );
         }
     }
-    (style, background_color)
+    (style, background_color, text)
 }
 
-fn set_style_attribute(
+fn set_attribute(
     name: &str,
     value: &str,
     style: &mut Style,
     background_color: &mut BackgroundColor,
+    text: Option<&mut Text>,
 ) {
     // TODO: The rest of Style
     match (name, value) {
@@ -317,8 +372,8 @@ fn set_style_attribute(
         ("flex-direction", "column") => style.flex_direction = FlexDirection::Column,
         ("background-color", hex) => {
             background_color.0 = Color::hex(hex).expect(&format!(
-                "Encountered unsupported bevy_dioxus hex Color `{hex}`."
-            ))
+                "Encountered invalid bevy_dioxus hex Color `{hex}`."
+            ));
         }
         ("padding", val) => style.padding = UiRect::all(parse_val(val)),
         ("width", val) => style.width = parse_val(val),
@@ -327,6 +382,26 @@ fn set_style_attribute(
             style.justify_content = JustifyContent::SpaceBetween;
         }
         ("align-content", "space-between") => style.align_content = AlignContent::SpaceBetween,
+        ("text", val) if text.is_some() => text.unwrap().sections[0] = val.into(),
+        ("text-alignment", "left") if text.is_some() => {
+            text.unwrap().alignment = TextAlignment::Left;
+        }
+        ("text-alignment", "center") if text.is_some() => {
+            text.unwrap().alignment = TextAlignment::Center;
+        }
+        ("text-alignment", "right") if text.is_some() => {
+            text.unwrap().alignment = TextAlignment::Right;
+        }
+        ("font-size", val) if text.is_some() => {
+            text.unwrap().sections[0].style.font_size = val
+                .parse::<f32>()
+                .unwrap_or_else(|val| panic!("Encountered invalid bevy_dioxus f32 `{val}`."));
+        }
+        ("font-color", hex) if text.is_some() => {
+            text.unwrap().sections[0].style.color = Color::hex(hex).expect(&format!(
+                "Encountered invalid bevy_dioxus hex Color `{hex}`."
+            ));
+        }
         _ => panic!("Encountered unsupported bevy_dioxus attribute `{name}: {value}`."),
     }
 }
@@ -350,5 +425,5 @@ fn parse_val(val: &str) -> Val {
             return Val::Vh(val);
         }
     }
-    panic!("Encountered unsupported bevy_dioxus Val `{val}`.");
+    panic!("Encountered invalid bevy_dioxus Val `{val}`.");
 }
