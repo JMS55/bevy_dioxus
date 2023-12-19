@@ -124,14 +124,12 @@ fn EntityInspector<'a>(cx: Scope, selected_entity: &'a UseState<Option<Entity>>)
                         node {
                             padding: "8",
                             background_color: NEUTRAL_800,
-
                             node {
                                 "Component: {name}"
                             }
                         }
                     }
                 }
-
             }
         }
     }
