@@ -221,21 +221,14 @@ impl BevyTemplateNode {
     fn from_dioxus(node: &TemplateNode) -> Self {
         match node {
             TemplateNode::Element {
-                tag,
-                namespace: _,
+                tag: "node",
+                namespace: Some("bevy_ui"),
                 attrs,
                 children,
-            } => {
-                if *tag != "div" {
-                    panic!(
-                        "Encountered unsupported bevy_dioxus tag `{tag}`. Only `div` is supported."
-                    );
-                }
-                Self::Node {
-                    style: parse_style_attributes(attrs),
-                    children: children.iter().map(Self::from_dioxus).collect(),
-                }
-            }
+            } => Self::Node {
+                style: parse_style_attributes(attrs),
+                children: children.iter().map(Self::from_dioxus).collect(),
+            },
             TemplateNode::Text { text } => {
                 Self::TextNode(Text::from_section(*text, TextStyle::default()))
             }
@@ -245,6 +238,20 @@ impl BevyTemplateNode {
             },
             TemplateNode::DynamicText { id: _ } => {
                 Self::TextNode(Text::from_section("", TextStyle::default()))
+            }
+            TemplateNode::Element {
+                tag,
+                namespace: None,
+                ..
+            } => {
+                panic!("Encountered unsupported bevy_dioxus tag `{tag}`.")
+            }
+            TemplateNode::Element {
+                tag,
+                namespace: Some(namespace),
+                ..
+            } => {
+                panic!("Encountered unsupported bevy_dioxus tag `{namespace}::{tag}`.")
             }
         }
     }

@@ -6,10 +6,8 @@ use bevy::{
     ui::{node_bundles::NodeBundle, Node},
     DefaultPlugins,
 };
-use bevy_dioxus::{
-    bevy_mod_picking::DefaultPickingPlugins, colors::*, dioxus::prelude::*, hooks::*,
-    DioxusUiBundle, DioxusUiPlugin, DioxusUiRoot,
-};
+use bevy_dioxus::{colors::*, prelude::*};
+use bevy_mod_picking::DefaultPickingPlugins;
 
 fn main() {
     App::new()
@@ -30,7 +28,7 @@ fn Editor(cx: Scope) -> Element {
     let selected_entity = use_state(cx, || Option::<Entity>::None);
 
     render! {
-        div {
+        node {
             width: "100vw",
             height: "100vh",
             justify_content: "space-between",
@@ -52,7 +50,7 @@ fn SceneTree<'a>(cx: Scope, selected_entity: &'a UseState<Option<Entity>>) -> El
     });
 
     render! {
-        div {
+        node {
             onclick: move |_| selected_entity.set(None),
             flex_direction: "column",
             if entities.is_empty() {
@@ -60,7 +58,7 @@ fn SceneTree<'a>(cx: Scope, selected_entity: &'a UseState<Option<Entity>>) -> El
             } else {
                 rsx! {
                     for (entity, name) in entities {
-                        div {
+                        node {
                             onclick: move |_| {
                                 if Some(entity) == ***selected_entity {
                                     selected_entity.set(None);
@@ -78,7 +76,7 @@ fn SceneTree<'a>(cx: Scope, selected_entity: &'a UseState<Option<Entity>>) -> El
                     }
                 }
             }
-            div {
+            node {
                 onclick: move |_| spawn_entity(),
                 padding: "8",
                 background_color: NEUTRAL_800,
@@ -117,14 +115,14 @@ fn EntityInspector<'a>(cx: Scope, selected_entity: &'a UseState<Option<Entity>>)
             }
         } else {
             rsx! {
-                div {
+                node {
                     flex_direction: "column",
                     for (name, _component_id, _type_id, _size) in components {
-                        div {
+                        node {
                             padding: "8",
                             background_color: NEUTRAL_800,
 
-                            div {
+                            node {
                                 "Component: {name}"
                             }
                         }

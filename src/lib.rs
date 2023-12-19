@@ -1,8 +1,10 @@
 mod apply_mutations;
 pub mod colors;
 mod deferred_system;
+mod elements;
+#[macro_use]
 mod events;
-pub mod hooks;
+mod hooks;
 mod tick;
 
 use self::{
@@ -18,8 +20,13 @@ use bevy::{
 };
 use dioxus::core::{Element, ElementId, Scope, VirtualDom};
 
-pub use bevy_mod_picking;
-pub use dioxus;
+pub mod prelude {
+    pub use super::elements::*;
+    pub use super::hooks::*;
+    pub use super::{DioxusUiBundle, DioxusUiPlugin, DioxusUiRoot};
+    pub use dioxus;
+    pub use dioxus::prelude::*;
+}
 
 pub struct DioxusUiPlugin;
 

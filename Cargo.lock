@@ -1631,7 +1631,6 @@ dependencies = [
  "dioxus-core-macro",
  "dioxus-hooks",
  "dioxus-hot-reload",
- "dioxus-html",
  "dioxus-rsx",
 ]
 
