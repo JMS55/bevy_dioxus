@@ -8,7 +8,6 @@ bevy = { git = "https://github.com/JMS55/bevy", branch = "query_new_12" }
 dioxus = { version = "0.4", default-features = false, features = [
     "macro",
     "hooks",
-    "hot-reload",
 ] }
 bevy_mod_picking = { version = "0.17", default-features = false, features = [
     "backend_bevy_ui",
