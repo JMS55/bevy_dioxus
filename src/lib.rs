@@ -5,6 +5,7 @@ mod elements;
 #[macro_use]
 mod events;
 mod hooks;
+mod parse_attributes;
 mod tick;
 
 use self::{
