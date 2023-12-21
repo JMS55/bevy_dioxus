@@ -31,7 +31,7 @@ fn Editor(cx: Scope) -> Element {
         node {
             width: "100vw",
             height: "100vh",
-            justify_content: "space-between",
+            justify_content: "space_between",
             SceneTree { selected_entity: selected_entity }
             EntityInspector { selected_entity: selected_entity }
         }
@@ -82,7 +82,7 @@ fn SceneTree<'a>(cx: Scope, selected_entity: &'a UseState<Option<Entity>>) -> El
                 background_color: NEUTRAL_800,
                 text {
                     text: "Spawn Entity",
-                    font_size: "18"
+                    text_size: "18"
                 }
             }
         }
@@ -124,9 +124,7 @@ fn EntityInspector<'a>(cx: Scope, selected_entity: &'a UseState<Option<Entity>>)
                         node {
                             padding: "8",
                             background_color: NEUTRAL_800,
-                            node {
-                                "Component: {name}"
-                            }
+                            "Component: {name}"
                         }
                     }
                 }
