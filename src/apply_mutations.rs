@@ -1,4 +1,4 @@
-use crate::events::is_supported_event;
+use crate::{events::is_supported_event, tick::IntrinsicTextNode};
 use bevy::{
     ecs::{entity::Entity, system::Command, world::World},
     hierarchy::{BuildWorldChildren, Children, DespawnRecursive, Parent},
@@ -323,10 +323,13 @@ impl BevyTemplateNode {
                     .id()
             }
             Self::IntrinsicTextNode(text) => world
-                .spawn(TextBundle {
-                    text: text.clone(),
-                    ..default()
-                })
+                .spawn((
+                    TextBundle {
+                        text: text.clone(),
+                        ..default()
+                    },
+                    IntrinsicTextNode,
+                ))
                 .id(),
         }
     }

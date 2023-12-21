@@ -4,11 +4,11 @@ use crate::{
 };
 use bevy::{
     ecs::{
+        component::Component,
         entity::Entity,
         world::{Mut, World},
     },
     hierarchy::Parent,
-    text::Text,
     utils::HashMap,
 };
 use std::{any::Any, mem, rc::Rc, sync::Arc};
@@ -68,7 +68,7 @@ fn dispatch_ui_events(
 ) {
     for (mut target, name, data) in events {
         let mut target_element_id = ui_root.bevy_ui_entity_to_element_id.get(&target).copied();
-        while target_element_id.is_none() || world.entity(target).contains::<Text>() {
+        while target_element_id.is_none() || world.entity(target).contains::<IntrinsicTextNode>() {
             target = world.entity(target).get::<Parent>().unwrap().get();
             target_element_id = ui_root.bevy_ui_entity_to_element_id.get(&target).copied();
         }
@@ -122,3 +122,6 @@ fn render_ui(root_entity: Entity, ui_root: &mut UiRoot, world: &mut World) {
         world,
     );
 }
+
+#[derive(Component)]
+pub struct IntrinsicTextNode;
