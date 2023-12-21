@@ -101,6 +101,9 @@ fn render_ui(root_entity: Entity, ui_root: &mut UiRoot, world: &mut World) {
         .base_scope()
         .provide_context(EcsContext { world });
 
+    #[cfg(feature = "hot_reload")]
+    crate::hot_reload::update_templates(world, &mut ui_root.virtual_dom);
+
     if ui_root.needs_rebuild {
         apply_mutations(
             ui_root.virtual_dom.rebuild(),

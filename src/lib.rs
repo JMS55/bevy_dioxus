@@ -5,6 +5,8 @@ mod elements;
 #[macro_use]
 mod events;
 mod hooks;
+#[cfg(feature = "hot_reload")]
+mod hot_reload;
 mod parse_attributes;
 mod tick;
 
@@ -33,6 +35,11 @@ pub struct DioxusUiPlugin;
 
 impl Plugin for DioxusUiPlugin {
     fn build(&self, app: &mut App) {
+        #[cfg(feature = "hot_reload")]
+        dioxus_hot_reload::hot_reload_init!(dioxus_hot_reload::Config::<
+            hot_reload::HotReloadContext,
+        >::default());
+
         app.init_non_send_resource::<UiContext>()
             .init_resource::<DeferredSystemRegistry>()
             .init_resource::<EventReaders>()
