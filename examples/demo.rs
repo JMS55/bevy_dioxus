@@ -49,6 +49,8 @@ fn SceneTree<'a>(cx: Scope, selected_entity: &'a UseState<Option<Entity>>) -> El
         world.spawn_empty();
     });
 
+    let (spawn_entity_hovered, enter, exit) = use_hover(cx);
+
     render! {
         node {
             onclick: move |_| selected_entity.set(None),
@@ -78,8 +80,10 @@ fn SceneTree<'a>(cx: Scope, selected_entity: &'a UseState<Option<Entity>>) -> El
             }
             node {
                 onclick: move |_| spawn_entity(),
+                onmouse_enter: enter,
+                onmouse_exit: exit,
                 padding: "8",
-                background_color: NEUTRAL_800,
+                background_color: if spawn_entity_hovered { NEUTRAL_600 } else { NEUTRAL_800 },
                 text {
                     text: "Spawn Entity",
                     text_size: "18"

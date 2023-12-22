@@ -9,8 +9,8 @@ use bevy::{
     utils::{HashMap, HashSet},
 };
 use dioxus::{
-    core::{ScopeId, ScopeState},
-    hooks::use_on_destroy,
+    core::{Event, ScopeId, ScopeState},
+    hooks::{use_on_destroy, use_state},
 };
 
 #[derive(Default)]
@@ -122,6 +122,15 @@ where
 {
     cx.use_hook(|| new_deferred_system(system, EcsContext::get_world(cx)))
         .0
+}
+
+pub fn use_hover<'a>(
+    cx: &'a ScopeState,
+) -> (bool, impl FnMut(Event<()>) + 'a, impl FnMut(Event<()>) + 'a) {
+    let hovered = use_state(cx, || false);
+    let on_mouse_enter = |_| hovered.set(true);
+    let on_mouse_exit = |_| hovered.set(false);
+    (*hovered.get(), on_mouse_enter, on_mouse_exit)
 }
 
 pub struct DioxusUiQuery<'a, Q: ReadOnlyWorldQuery, F: ReadOnlyWorldQuery> {

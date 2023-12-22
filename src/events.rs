@@ -3,7 +3,7 @@ use bevy::ecs::{
     event::{Events, ManualEventReader},
     system::Resource,
 };
-use bevy_mod_picking::events::{Click, Pointer};
+use bevy_mod_picking::events::{Click, Out, Over, Pointer};
 use dioxus::core::ScopeState;
 use std::{any::Any, rc::Rc};
 
@@ -11,32 +11,47 @@ use std::{any::Any, rc::Rc};
 
 #[derive(Resource, Default)]
 pub struct EventReaders {
-    clicks: ManualEventReader<Pointer<Click>>,
+    click: ManualEventReader<Pointer<Click>>,
+    mouse_enter: ManualEventReader<Pointer<Over>>,
+    mouse_exit: ManualEventReader<Pointer<Out>>,
 }
 
 impl EventReaders {
     pub fn get_dioxus_events(
         &mut self,
-        clicks: &Events<Pointer<Click>>,
+        click: &Events<Pointer<Click>>,
+        mouse_enter: &Events<Pointer<Over>>,
+        mouse_exit: &Events<Pointer<Out>>,
     ) -> Vec<(Entity, &'static str, Rc<dyn Any>)> {
         let mut events: Vec<(Entity, &'static str, Rc<dyn Any>)> = Vec::new();
-
-        for event in self.clicks.read(clicks) {
+        for event in self.click.read(click) {
             events.push((event.target, "click", Rc::new(())));
         }
-
+        for event in self.mouse_enter.read(mouse_enter) {
+            events.push((event.target, "mouse_enter", Rc::new(())));
+        }
+        for event in self.mouse_exit.read(mouse_exit) {
+            events.push((event.target, "mouse_exit", Rc::new(())));
+        }
         events
     }
 }
 
 pub fn is_supported_event(event: &str) -> bool {
-    event == "click"
+    match event {
+        "click" => true,
+        "mouse_enter" => true,
+        "mouse_exit" => true,
+        _ => false,
+    }
 }
 
 pub mod events {
     super::impl_event! [
         ();
         onclick
+        onmouse_enter
+        onmouse_exit
     ];
 }
 

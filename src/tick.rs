@@ -17,7 +17,7 @@ pub fn tick_dioxus_ui(world: &mut World) {
     run_deferred_systems(world);
 
     let ui_events = world.resource_scope(|world, mut event_readers: Mut<EventReaders>| {
-        event_readers.get_dioxus_events(world.resource())
+        event_readers.get_dioxus_events(world.resource(), world.resource(), world.resource())
     });
 
     let root_entities: HashMap<Entity, DioxusUiRoot> = world
