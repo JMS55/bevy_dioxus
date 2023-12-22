@@ -158,6 +158,7 @@ pub fn apply_mutations(
             } => {
                 let value = match value {
                     BorrowedAttributeValue::Text(value) => value,
+                    BorrowedAttributeValue::None => todo!("Remove the attribute"),
                     value => {
                         panic!("Encountered unsupported bevy_dioxus attribute `{name}: {value:?}`.")
                     }
