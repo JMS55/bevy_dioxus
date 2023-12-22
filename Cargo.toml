@@ -5,14 +5,14 @@ edition = "2021"
 
 [dependencies]
 bevy = { git = "https://github.com/JMS55/bevy", branch = "query_new_12" }
-dioxus = { version = "0.4", default-features = false, features = [
+dioxus = { git = "https://github.com/ealmloff/dioxus", branch = "fix-event-bubbling", default-features = false, features = [
     "macro",
     "hooks",
 ] }
-dioxus-rsx = { version = "0.4", default-features = false, features = [
+dioxus-rsx = { git = "https://github.com/ealmloff/dioxus", branch = "fix-event-bubbling", default-features = false, features = [
     "hot_reload",
 ], optional = true }
-dioxus-hot-reload = { version = "0.4", default-features = false, features = [
+dioxus-hot-reload = { git = "https://github.com/ealmloff/dioxus", branch = "fix-event-bubbling", default-features = false, features = [
     "custom_file_watcher",
 ], optional = true }
 bevy_mod_picking = { version = "0.17", default-features = false, features = [

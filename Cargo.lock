@@ -1730,8 +1730,7 @@ checksum = "7e962a19be5cfc3f3bf6dd8f61eb50107f356ad6270fbb3ed41476571db78be5"
 [[package]]
 name = "dioxus"
 version = "0.4.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2d9e3b0725e520250bf23213f996d241cca29cea4360a9bf08a44e0033f8e569"
+source = "git+https://github.com/ealmloff/dioxus?branch=fix-event-bubbling#7b45a3a98bde103e5c86a469159e2432da96bdda"
 dependencies = [
  "dioxus-core",
  "dioxus-core-macro",
@@ -1743,8 +1742,7 @@ dependencies = [
 [[package]]
 name = "dioxus-core"
 version = "0.4.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0f33186615b2e90bceab24a195b3cfad4e0b4d91a33ec44a94845876bfb25c13"
+source = "git+https://github.com/ealmloff/dioxus?branch=fix-event-bubbling#7b45a3a98bde103e5c86a469159e2432da96bdda"
 dependencies = [
  "bumpalo",
  "futures-channel",
@@ -1760,8 +1758,7 @@ dependencies = [
 [[package]]
 name = "dioxus-core-macro"
 version = "0.4.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "21afaccb28587aed0ba98856335912f5ce7052c0aafa74b213829a3b8bfd2345"
+source = "git+https://github.com/ealmloff/dioxus?branch=fix-event-bubbling#7b45a3a98bde103e5c86a469159e2432da96bdda"
 dependencies = [
  "constcat",
  "dioxus-core",
@@ -1781,8 +1778,7 @@ checksum = "2ea539174bb236e0e7dc9c12b19b88eae3cb574dedbd0252a2d43ea7e6de13e2"
 [[package]]
 name = "dioxus-hooks"
 version = "0.4.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5bb23ce82df4fb13e9ddaa01d1469f1f32d683dd4636204bd0a0eaf434b65946"
+source = "git+https://github.com/ealmloff/dioxus?branch=fix-event-bubbling#7b45a3a98bde103e5c86a469159e2432da96bdda"
 dependencies = [
  "dioxus-core",
  "dioxus-debug-cell",
@@ -1795,8 +1791,7 @@ dependencies = [
 [[package]]
 name = "dioxus-hot-reload"
 version = "0.4.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b7d8c9e89e866a6b84b8ad696f0ff2f6f6563d2235eb99acc6952f19e516cc09"
+source = "git+https://github.com/ealmloff/dioxus?branch=fix-event-bubbling#7b45a3a98bde103e5c86a469159e2432da96bdda"
 dependencies = [
  "chrono",
  "dioxus-core",
@@ -1814,8 +1809,7 @@ dependencies = [
 [[package]]
 name = "dioxus-html"
 version = "0.4.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "828a42a2d70688a2412a8538c8b5a5eceadf68f682f899dc4455a0169db39dfd"
+source = "git+https://github.com/ealmloff/dioxus?branch=fix-event-bubbling#7b45a3a98bde103e5c86a469159e2432da96bdda"
 dependencies = [
  "async-channel 1.9.0",
  "async-trait",
@@ -1833,8 +1827,7 @@ dependencies = [
 [[package]]
 name = "dioxus-rsx"
 version = "0.4.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c974133c7c95497a486d587e40449927711430b308134b9cd374b8d35eceafb3"
+source = "git+https://github.com/ealmloff/dioxus?branch=fix-event-bubbling#7b45a3a98bde103e5c86a469159e2432da96bdda"
 dependencies = [
  "dioxus-core",
  "internment",
@@ -1842,6 +1835,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.41",
+ "tracing",
 ]
 
 [[package]]
