@@ -75,6 +75,7 @@ pub fn apply_mutations(
                     TextLayoutInfo::default(),
                     TextFlags::default(),
                     ContentSize::default(),
+                    IntrinsicTextNode,
                 ));
                 element_id_to_bevy_ui_entity.insert(id, entity);
                 bevy_ui_entity_to_element_id.insert(entity, id);
