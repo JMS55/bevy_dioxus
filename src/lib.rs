@@ -11,14 +11,17 @@ mod parse_attributes;
 mod tick;
 
 use self::{
-    apply_mutations::BevyTemplate, deferred_system::DeferredSystemRegistry, events::EventReaders,
-    hooks::EcsSubscriptions, tick::tick_dioxus_ui,
+    apply_mutations::BevyTemplate,
+    deferred_system::DeferredSystemRegistry,
+    events::{generate_mouse_enter_leave_events, EventReaders, MouseEnter, MouseExit},
+    hooks::EcsSubscriptions,
+    tick::tick_dioxus_ui,
 };
 use bevy::{
-    app::{App, Plugin, Update},
-    ecs::{bundle::Bundle, component::Component, entity::Entity},
+    app::{App, Last, Plugin, PreUpdate},
+    ecs::{bundle::Bundle, component::Component, entity::Entity, schedule::IntoSystemConfigs},
     prelude::Deref,
-    ui::node_bundles::NodeBundle,
+    ui::{node_bundles::NodeBundle, ui_focus_system},
     utils::{EntityHashMap, HashMap},
 };
 use dioxus::core::{Element, ElementId, Scope, VirtualDom};
@@ -43,7 +46,13 @@ impl Plugin for DioxusUiPlugin {
         app.init_non_send_resource::<UiContext>()
             .init_resource::<DeferredSystemRegistry>()
             .init_resource::<EventReaders>()
-            .add_systems(Update, tick_dioxus_ui);
+            .add_event::<MouseEnter>()
+            .add_event::<MouseExit>()
+            .add_systems(
+                PreUpdate,
+                generate_mouse_enter_leave_events.after(ui_focus_system),
+            )
+            .add_systems(Last, tick_dioxus_ui);
     }
 }
 

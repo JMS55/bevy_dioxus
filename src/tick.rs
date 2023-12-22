@@ -17,7 +17,13 @@ pub fn tick_dioxus_ui(world: &mut World) {
     run_deferred_systems(world);
 
     let ui_events = world.resource_scope(|world, mut event_readers: Mut<EventReaders>| {
-        event_readers.get_dioxus_events(world.resource(), world.resource(), world.resource())
+        event_readers.get_dioxus_events(
+            world.resource(),
+            world.resource(),
+            world.resource(),
+            world.resource(),
+            world.resource(),
+        )
     });
 
     let root_entities: HashMap<Entity, DioxusUiRoot> = world
@@ -62,20 +68,26 @@ fn run_deferred_systems(world: &mut World) {
 }
 
 fn dispatch_ui_events(
-    events: &Vec<(Entity, &str, Rc<dyn Any>)>,
+    events: &Vec<(Entity, &str, Rc<dyn Any>, bool)>,
     ui_root: &mut UiRoot,
     world: &World,
 ) {
-    for (mut target, name, data) in events {
+    for (mut target, name, data, bubbles) in events {
         let mut target_element_id = ui_root.bevy_ui_entity_to_element_id.get(&target).copied();
-        while target_element_id.is_none() || world.entity(target).contains::<IntrinsicTextNode>() {
-            target = world.entity(target).get::<Parent>().unwrap().get();
-            target_element_id = ui_root.bevy_ui_entity_to_element_id.get(&target).copied();
+        if *bubbles {
+            while target_element_id.is_none()
+                || world.entity(target).contains::<IntrinsicTextNode>()
+            {
+                target = world.entity(target).get::<Parent>().unwrap().get();
+                target_element_id = ui_root.bevy_ui_entity_to_element_id.get(&target).copied();
+            }
         }
 
-        ui_root
-            .virtual_dom
-            .handle_event(name, Rc::clone(data), target_element_id.unwrap(), true);
+        if let Some(target_element_id) = target_element_id {
+            ui_root
+                .virtual_dom
+                .handle_event(name, Rc::clone(data), target_element_id, *bubbles);
+        }
     }
 }
 

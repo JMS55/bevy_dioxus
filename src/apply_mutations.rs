@@ -183,12 +183,23 @@ pub fn apply_mutations(
                     .entity_mut(element_id_to_bevy_ui_entity[&id])
                     .insert(Text::from_section(value, TextStyle::default()));
             }
-            Mutation::NewEventListener { name, id: _ } => {
+            Mutation::NewEventListener { name, id } => {
                 if !is_supported_event(name) {
                     panic!("Encountered unsupported bevy_dioxus event `{name}`.");
                 }
+                if name == "mouse_enter" || name == "mouse_exit" {
+                    world
+                        .entity_mut(element_id_to_bevy_ui_entity[&id])
+                        .insert(RelativeCursorPosition::default());
+                }
             }
-            Mutation::RemoveEventListener { .. } => {}
+            Mutation::RemoveEventListener { name, id } => {
+                if name == "mouse_enter" || name == "mouse_exit" {
+                    world
+                        .entity_mut(element_id_to_bevy_ui_entity[&id])
+                        .remove::<RelativeCursorPosition>();
+                }
+            }
             Mutation::Remove { id } => {
                 let entity = element_id_to_bevy_ui_entity[&id];
                 DespawnRecursive { entity }.apply(world);
