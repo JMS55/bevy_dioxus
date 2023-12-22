@@ -101,6 +101,8 @@ impl HotReloadingContext for HotReloadContext {
                 "grid_column" => Some(("grid_column", None)),
                 "background_color" => Some(("background_color", None)),
                 "translation" => Some(("translation", None)),
+                "translation_x" => Some(("translation_x", None)),
+                "translation_y" => Some(("translation_y", None)),
                 "rotation" => Some(("rotation", None)),
                 "scale" => Some(("scale", None)),
                 "visibility" => Some(("visibility", None)),

@@ -56,6 +56,8 @@ macro_rules! node_attributes {
         pub const grid_column: AttributeDescription = ("grid_column", None, false);
         pub const background_color: AttributeDescription = ("background_color", None, false);
         pub const translation: AttributeDescription = ("translation", None, false);
+        pub const translation_x: AttributeDescription = ("translation", None, false);
+        pub const translation_y: AttributeDescription = ("translation", None, false);
         pub const rotation: AttributeDescription = ("rotation", None, false);
         pub const scale: AttributeDescription = ("scale", None, false);
         pub const visibility: AttributeDescription = ("visibility", None, false);
