@@ -7,7 +7,7 @@ use bevy::{
     ui::RelativeCursorPosition,
     utils::EntityHashSet,
 };
-use bevy_mod_picking::events::{Click, Out, Over, Pointer};
+use bevy_mod_picking::events::{Click, Down, Out, Over, Pointer, Up};
 use dioxus::core::ScopeState;
 use std::{any::Any, mem, rc::Rc};
 
@@ -16,6 +16,8 @@ use std::{any::Any, mem, rc::Rc};
 #[derive(Resource, Default)]
 pub struct EventReaders {
     click: ManualEventReader<Pointer<Click>>,
+    click_down: ManualEventReader<Pointer<Down>>,
+    click_up: ManualEventReader<Pointer<Up>>,
     mouse_over: ManualEventReader<Pointer<Over>>,
     mouse_out: ManualEventReader<Pointer<Out>>,
     mouse_enter: ManualEventReader<MouseEnter>,
@@ -26,6 +28,8 @@ impl EventReaders {
     pub fn get_dioxus_events(
         &mut self,
         click: &Events<Pointer<Click>>,
+        click_down: &Events<Pointer<Down>>,
+        click_up: &Events<Pointer<Up>>,
         mouse_over: &Events<Pointer<Over>>,
         mouse_out: &Events<Pointer<Out>>,
         mouse_enter: &Events<MouseEnter>,
@@ -34,6 +38,12 @@ impl EventReaders {
         let mut events: Vec<(Entity, &'static str, Rc<dyn Any>, bool)> = Vec::new();
         for event in self.click.read(click) {
             events.push((event.target, "click", Rc::new(()), true));
+        }
+        for event in self.click_down.read(click_down) {
+            events.push((event.target, "click_down", Rc::new(()), true));
+        }
+        for event in self.click_up.read(click_up) {
+            events.push((event.target, "click_up", Rc::new(()), true));
         }
         for event in self.mouse_over.read(mouse_over) {
             events.push((event.target, "mouse_over", Rc::new(()), false));
@@ -54,6 +64,8 @@ impl EventReaders {
 pub fn is_supported_event(event: &str) -> bool {
     match event {
         "click" => true,
+        "click_down" => true,
+        "click_up" => true,
         "mouse_over" => true,
         "mouse_out" => true,
         "mouse_enter" => true,
@@ -66,6 +78,8 @@ pub mod events {
     super::impl_event! [
         ();
         onclick
+        onclick_down
+        onclick_up
         onmouse_over
         onmouse_out
         onmouse_enter

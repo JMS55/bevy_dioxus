@@ -1,10 +1,10 @@
 mod apply_mutations;
 pub mod colors;
 mod deferred_system;
+mod ecs_hooks;
 mod elements;
 #[macro_use]
 mod events;
-mod hooks;
 #[cfg(feature = "hot_reload")]
 mod hot_reload;
 mod parse_attributes;
@@ -13,8 +13,8 @@ mod tick;
 use self::{
     apply_mutations::BevyTemplate,
     deferred_system::DeferredSystemRegistry,
+    ecs_hooks::EcsSubscriptions,
     events::{generate_mouse_enter_leave_events, EventReaders, MouseEnter, MouseExit},
-    hooks::EcsSubscriptions,
     tick::tick_dioxus_ui,
 };
 use bevy::{
@@ -27,8 +27,8 @@ use bevy::{
 use dioxus::core::{Element, ElementId, Scope, VirtualDom};
 
 pub mod prelude {
+    pub use super::ecs_hooks::*;
     pub use super::elements::*;
-    pub use super::hooks::*;
     pub use super::{DioxusUiBundle, DioxusUiPlugin, DioxusUiRoot};
     pub use dioxus;
     pub use dioxus::prelude::*;

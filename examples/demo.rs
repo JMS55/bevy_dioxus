@@ -49,8 +49,6 @@ fn SceneTree<'a>(cx: Scope, selected_entity: &'a UseState<Option<Entity>>) -> El
         world.spawn_empty();
     });
 
-    let (spawn_entity_hovered, enter, exit) = use_hover(cx);
-
     render! {
         node {
             onclick: move |_| selected_entity.set(None),
@@ -60,8 +58,8 @@ fn SceneTree<'a>(cx: Scope, selected_entity: &'a UseState<Option<Entity>>) -> El
             } else {
                 rsx! {
                     for (entity, name) in entities {
-                        node {
-                            onclick: move |event| {
+                        Button {
+                            onclick: move |event: Event<()>| {
                                 if Some(entity) == ***selected_entity {
                                     selected_entity.set(None);
                                 } else {
@@ -69,8 +67,9 @@ fn SceneTree<'a>(cx: Scope, selected_entity: &'a UseState<Option<Entity>>) -> El
                                 }
                                 event.stop_propagation();
                             },
-                            padding: "8",
-                            background_color: if Some(entity) == ***selected_entity { INDIGO_600 } else { NEUTRAL_800 },
+                            base_color: if Some(entity) == ***selected_entity { Some(VIOLET_700) } else { None },
+                            click_color: if Some(entity) == ***selected_entity { Some(VIOLET_400) } else { None },
+                            hover_color: if Some(entity) == ***selected_entity { Some(VIOLET_500) } else { None },
                             match name.name {
                                 Some(name) => format!("{name}"),
                                 _ => format!("Entity ({:?})", name.entity)
@@ -79,19 +78,12 @@ fn SceneTree<'a>(cx: Scope, selected_entity: &'a UseState<Option<Entity>>) -> El
                     }
                 }
             }
-            node {
-                onclick: move |event| {
+            Button {
+                onclick: move |event: Event<()>| {
                     spawn_entity();
                     event.stop_propagation();
                 },
-                onmouse_enter: enter,
-                onmouse_exit: exit,
-                padding: "8",
-                background_color: if spawn_entity_hovered { NEUTRAL_600 } else { NEUTRAL_800 },
-                text {
-                    text: "Spawn Entity",
-                    text_size: "18"
-                }
+                text { text: "Spawn Entity", text_size: "18" }
             }
         }
     }
@@ -139,4 +131,39 @@ fn EntityInspector<'a>(cx: Scope, selected_entity: &'a UseState<Option<Entity>>)
             }
         }
     }
+}
+
+#[allow(non_snake_case)]
+fn Button<'a>(cx: Scope<'a, ButtonProps<'a>>) -> Element<'a> {
+    let clicked = use_state(cx, || false);
+    let hovered = use_state(cx, || false);
+    let background_color = if **clicked {
+        cx.props.click_color.unwrap_or(NEUTRAL_500)
+    } else if **hovered {
+        cx.props.hover_color.unwrap_or(NEUTRAL_600)
+    } else {
+        cx.props.base_color.unwrap_or(NEUTRAL_800)
+    };
+
+    render! {
+        node {
+            onclick: move |event| cx.props.onclick.call(event),
+            onclick_down: |_| clicked.set(true),
+            onclick_up: |_| clicked.set(false),
+            onmouse_enter: |_| hovered.set(true),
+            onmouse_exit: |_| { hovered.set(false); clicked.set(false) },
+            padding: "8",
+            background_color: background_color,
+            &cx.props.children
+        }
+    }
+}
+
+#[derive(Props)]
+struct ButtonProps<'a> {
+    onclick: EventHandler<'a, Event<()>>,
+    base_color: Option<&'a str>,
+    click_color: Option<&'a str>,
+    hover_color: Option<&'a str>,
+    children: Element<'a>,
 }

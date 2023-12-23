@@ -1,6 +1,6 @@
 use crate::{
     apply_mutations::apply_mutations, deferred_system::DeferredSystemRegistry,
-    events::EventReaders, hooks::EcsContext, DioxusUiRoot, UiContext, UiRoot,
+    ecs_hooks::EcsContext, events::EventReaders, DioxusUiRoot, UiContext, UiRoot,
 };
 use bevy::{
     ecs::{
@@ -18,6 +18,8 @@ pub fn tick_dioxus_ui(world: &mut World) {
 
     let ui_events = world.resource_scope(|world, mut event_readers: Mut<EventReaders>| {
         event_readers.get_dioxus_events(
+            world.resource(),
+            world.resource(),
             world.resource(),
             world.resource(),
             world.resource(),
