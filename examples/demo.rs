@@ -80,7 +80,10 @@ fn SceneTree<'a>(cx: Scope, selected_entity: &'a UseState<Option<Entity>>) -> El
                 }
             }
             node {
-                onclick: move |_| spawn_entity(),
+                onclick: move |event| {
+                    spawn_entity();
+                    event.stop_propagation();
+                },
                 onmouse_enter: enter,
                 onmouse_exit: exit,
                 padding: "8",
