@@ -1,9 +1,13 @@
 use bevy::{
     ecs::{
+        component::Component,
         entity::Entity,
         event::{Event, EventWriter, Events, ManualEventReader},
         system::{Local, Query, Resource},
+        world::World,
     },
+    hierarchy::Parent,
+    prelude::EntityWorldMut,
     ui::RelativeCursorPosition,
     utils::EntityHashSet,
 };
@@ -12,6 +16,18 @@ use dioxus::core::ScopeState;
 use std::{any::Any, mem, rc::Rc};
 
 // TODO: Other events
+pub mod events {
+    super::impl_event! [
+        ();
+        onclick
+        onclick_down
+        onclick_up
+        onmouse_over
+        onmouse_out
+        onmouse_enter
+        onmouse_exit
+    ];
+}
 
 #[derive(Resource, Default)]
 pub struct EventReaders {
@@ -25,7 +41,7 @@ pub struct EventReaders {
 }
 
 impl EventReaders {
-    pub fn get_dioxus_events(
+    pub fn read_events(
         &mut self,
         click: &Events<Pointer<Click>>,
         click_down: &Events<Pointer<Down>>,
@@ -61,31 +77,85 @@ impl EventReaders {
     }
 }
 
-pub fn is_supported_event(event: &str) -> bool {
-    match event {
-        "click" => true,
-        "click_down" => true,
-        "click_up" => true,
-        "mouse_over" => true,
-        "mouse_out" => true,
-        "mouse_enter" => true,
-        "mouse_exit" => true,
-        _ => false,
+pub fn insert_event_listener(name: &str, mut entity: EntityWorldMut<'_>) {
+    match name {
+        "click" => entity.insert(HasClickEventListener),
+        "click_down" => entity.insert(HasClickDownEventListener),
+        "click_up" => entity.insert(HasClickUpEventListener),
+        "mouse_over" => &mut entity,
+        "mouse_out" => &mut entity,
+        "mouse_enter" => entity.insert((
+            HasMouseEnterEventListener,
+            RelativeCursorPosition::default(),
+        )),
+        "mouse_exit" => {
+            entity.insert((HasMouseExitEventListener, RelativeCursorPosition::default()))
+        }
+        _ => panic!("Encountered unsupported bevy_dioxus event `{name}`."),
+    };
+}
+
+pub fn remove_event_listener(name: &str, mut entity: EntityWorldMut<'_>) {
+    match name {
+        "click" => entity.remove::<HasClickEventListener>(),
+        "click_down" => entity.remove::<HasClickDownEventListener>(),
+        "click_up" => entity.remove::<HasClickUpEventListener>(),
+        "mouse_over" => &mut entity,
+        "mouse_out" => &mut entity,
+        "mouse_enter" => {
+            entity.remove::<HasMouseEnterEventListener>();
+            if !entity.contains::<HasMouseExitEventListener>() {
+                entity.remove::<RelativeCursorPosition>();
+            }
+            &mut entity
+        }
+        "mouse_exit" => {
+            entity.remove::<HasMouseExitEventListener>();
+            if !entity.contains::<HasMouseEnterEventListener>() {
+                entity.remove::<RelativeCursorPosition>();
+            }
+            &mut entity
+        }
+        _ => unreachable!(),
+    };
+}
+
+#[derive(Component)]
+pub struct HasClickEventListener;
+
+#[derive(Component)]
+pub struct HasClickDownEventListener;
+
+#[derive(Component)]
+pub struct HasClickUpEventListener;
+
+#[derive(Component)]
+pub struct HasMouseEnterEventListener;
+
+#[derive(Component)]
+pub struct HasMouseExitEventListener;
+
+// ----------------------------------------------------------------------------
+
+pub fn bubble_event(event_name: &str, target_entity: &mut Entity, world: &World) {
+    match event_name {
+        "click" => bubble_event_helper::<HasClickEventListener>(target_entity, world),
+        "click_down" => bubble_event_helper::<HasClickDownEventListener>(target_entity, world),
+        "click_up" => bubble_event_helper::<HasClickUpEventListener>(target_entity, world),
+        _ => unreachable!(),
+    };
+}
+
+fn bubble_event_helper<T: Component>(target_entity: &mut Entity, world: &World) {
+    while !world.entity(*target_entity).contains::<T>() {
+        *target_entity = match world.entity(*target_entity).get::<Parent>() {
+            Some(parent) => parent.get(),
+            None => return,
+        };
     }
 }
 
-pub mod events {
-    super::impl_event! [
-        ();
-        onclick
-        onclick_down
-        onclick_up
-        onmouse_over
-        onmouse_out
-        onmouse_enter
-        onmouse_exit
-    ];
-}
+// ----------------------------------------------------------------------------
 
 pub fn generate_mouse_enter_leave_events(
     entities: Query<(Entity, &RelativeCursorPosition)>,

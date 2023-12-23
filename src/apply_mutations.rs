@@ -1,4 +1,7 @@
-use crate::{events::is_supported_event, parse_attributes::set_attribute, tick::IntrinsicTextNode};
+use crate::{
+    events::{insert_event_listener, remove_event_listener},
+    parse_attributes::set_attribute,
+};
 use bevy::{
     ecs::{entity::Entity, system::Command, world::World},
     hierarchy::{BuildWorldChildren, Children, DespawnRecursive, Parent},
@@ -75,7 +78,6 @@ pub fn apply_mutations(
                     TextLayoutInfo::default(),
                     TextFlags::default(),
                     ContentSize::default(),
-                    IntrinsicTextNode,
                 ));
                 element_id_to_bevy_ui_entity.insert(id, entity);
                 bevy_ui_entity_to_element_id.insert(entity, id);
@@ -184,21 +186,10 @@ pub fn apply_mutations(
                     .insert(Text::from_section(value, TextStyle::default()));
             }
             Mutation::NewEventListener { name, id } => {
-                if !is_supported_event(name) {
-                    panic!("Encountered unsupported bevy_dioxus event `{name}`.");
-                }
-                if name == "mouse_enter" || name == "mouse_exit" {
-                    world
-                        .entity_mut(element_id_to_bevy_ui_entity[&id])
-                        .insert(RelativeCursorPosition::default());
-                }
+                insert_event_listener(name, world.entity_mut(element_id_to_bevy_ui_entity[&id]));
             }
             Mutation::RemoveEventListener { name, id } => {
-                if name == "mouse_enter" || name == "mouse_exit" {
-                    world
-                        .entity_mut(element_id_to_bevy_ui_entity[&id])
-                        .remove::<RelativeCursorPosition>();
-                }
+                remove_event_listener(name, world.entity_mut(element_id_to_bevy_ui_entity[&id]));
             }
             Mutation::Remove { id } => {
                 let entity = element_id_to_bevy_ui_entity[&id];
@@ -336,13 +327,10 @@ impl BevyTemplateNode {
                     .id()
             }
             Self::IntrinsicTextNode(text) => world
-                .spawn((
-                    TextBundle {
-                        text: text.clone(),
-                        ..default()
-                    },
-                    IntrinsicTextNode,
-                ))
+                .spawn(TextBundle {
+                    text: text.clone(),
+                    ..default()
+                })
                 .id(),
         }
     }

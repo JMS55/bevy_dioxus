@@ -1,14 +1,15 @@
 use crate::{
-    apply_mutations::apply_mutations, deferred_system::DeferredSystemRegistry,
-    ecs_hooks::EcsContext, events::EventReaders, DioxusUiRoot, UiContext, UiRoot,
+    apply_mutations::apply_mutations,
+    deferred_system::DeferredSystemRegistry,
+    ecs_hooks::EcsContext,
+    events::{bubble_event, EventReaders},
+    DioxusUiRoot, UiContext, UiRoot,
 };
 use bevy::{
     ecs::{
-        component::Component,
         entity::Entity,
         world::{Mut, World},
     },
-    hierarchy::Parent,
     utils::HashMap,
 };
 use std::{any::Any, mem, rc::Rc, sync::Arc};
@@ -17,7 +18,7 @@ pub fn tick_dioxus_ui(world: &mut World) {
     run_deferred_systems(world);
 
     let ui_events = world.resource_scope(|world, mut event_readers: Mut<EventReaders>| {
-        event_readers.get_dioxus_events(
+        event_readers.read_events(
             world.resource(),
             world.resource(),
             world.resource(),
@@ -75,20 +76,13 @@ fn dispatch_ui_events(
     world: &World,
 ) {
     for (mut target, name, data, bubbles) in events {
-        let mut target_element_id = ui_root.bevy_ui_entity_to_element_id.get(&target).copied();
         if *bubbles {
-            while target_element_id.is_none()
-                || world.entity(target).contains::<IntrinsicTextNode>()
-            {
-                target = world.entity(target).get::<Parent>().unwrap().get();
-                target_element_id = ui_root.bevy_ui_entity_to_element_id.get(&target).copied();
-            }
+            bubble_event(name, &mut target, world);
         }
-
-        if let Some(target_element_id) = target_element_id {
+        if let Some(target_element_id) = ui_root.bevy_ui_entity_to_element_id.get(&target) {
             ui_root
                 .virtual_dom
-                .handle_event(name, Rc::clone(data), target_element_id, *bubbles);
+                .handle_event(name, Rc::clone(data), *target_element_id, *bubbles);
         }
     }
 }
@@ -139,6 +133,3 @@ fn render_ui(root_entity: Entity, ui_root: &mut UiRoot, world: &mut World) {
         world,
     );
 }
-
-#[derive(Component)]
-pub struct IntrinsicTextNode;
