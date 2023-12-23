@@ -1,5 +1,6 @@
 macro_rules! node_attributes {
     () => {
+        pub const animate: AttributeDescription = ("animate", None, false);
         pub const display: AttributeDescription = ("display", None, false);
         pub const position: AttributeDescription = ("position", None, false);
         pub const overflow: AttributeDescription = ("overflow", None, false);
@@ -60,6 +61,8 @@ macro_rules! node_attributes {
         pub const translation_y: AttributeDescription = ("translation", None, false);
         pub const rotation: AttributeDescription = ("rotation", None, false);
         pub const scale: AttributeDescription = ("scale", None, false);
+        pub const scale_x: AttributeDescription = ("scale_x", None, false);
+        pub const scale_y: AttributeDescription = ("scale_y", None, false);
         pub const visibility: AttributeDescription = ("visibility", None, false);
         pub const z_index: AttributeDescription = ("z_index", None, false);
     };

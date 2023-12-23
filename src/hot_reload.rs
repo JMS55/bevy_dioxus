@@ -46,6 +46,7 @@ impl HotReloadingContext for HotReloadContext {
         if let dioxus_elements::node::TAG_NAME | dioxus_elements::text::TAG_NAME = element_name_rust
         {
             match attribute_name_rust {
+                "animate" => Some(("animate", None)),
                 "display" => Some(("display", None)),
                 "position" => Some(("position", None)),
                 "overflow" => Some(("overflow", None)),
@@ -105,6 +106,8 @@ impl HotReloadingContext for HotReloadContext {
                 "translation_y" => Some(("translation_y", None)),
                 "rotation" => Some(("rotation", None)),
                 "scale" => Some(("scale", None)),
+                "scale_x" => Some(("scale_x", None)),
+                "scale_y" => Some(("scale_y", None)),
                 "visibility" => Some(("visibility", None)),
                 "z_index" => Some(("z_index", None)),
                 _ => None,
