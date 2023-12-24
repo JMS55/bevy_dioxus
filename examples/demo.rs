@@ -114,7 +114,10 @@ fn EntityInspector<'a>(cx: Scope, selected_entity: &'a UseState<Option<Entity>>)
     render! {
         if selected_entity.is_none() {
             rsx! {
-                "Select an entity to view its components"
+                node {
+                    padding: "8",
+                    "Select an entity to view its components"
+                }
             }
         } else {
             rsx! {
