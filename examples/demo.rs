@@ -59,7 +59,7 @@ fn SceneTree<'a>(cx: Scope, selected_entity: &'a UseState<Option<Entity>>) -> El
                 rsx! {
                     for (entity, name) in entities {
                         Button {
-                            onclick: move |event: Event<()>| {
+                            onclick: move |event: Event<PointerButton>| if *event.data == PointerButton::Primary {
                                 if Some(entity) == ***selected_entity {
                                     selected_entity.set(None);
                                 } else {
@@ -79,7 +79,7 @@ fn SceneTree<'a>(cx: Scope, selected_entity: &'a UseState<Option<Entity>>) -> El
                 }
             }
             Button {
-                onclick: move |event: Event<()>| {
+                onclick: move |event: Event<PointerButton>| if *event.data == PointerButton::Primary {
                     spawn_entity();
                     event.stop_propagation();
                 },
@@ -148,8 +148,8 @@ fn Button<'a>(cx: Scope<'a, ButtonProps<'a>>) -> Element<'a> {
     render! {
         node {
             onclick: move |event| cx.props.onclick.call(event),
-            onclick_down: |_| clicked.set(true),
-            onclick_up: |_| clicked.set(false),
+            onclick_down: |event| if *event.data == PointerButton::Primary { clicked.set(true) },
+            onclick_up: |event| if *event.data == PointerButton::Primary { clicked.set(false) },
             onmouse_enter: |_| hovered.set(true),
             onmouse_exit: |_| { hovered.set(false); clicked.set(false) },
             padding: "8",
@@ -161,7 +161,7 @@ fn Button<'a>(cx: Scope<'a, ButtonProps<'a>>) -> Element<'a> {
 
 #[derive(Props)]
 struct ButtonProps<'a> {
-    onclick: EventHandler<'a, Event<()>>,
+    onclick: EventHandler<'a, Event<PointerButton>>,
     base_color: Option<&'a str>,
     click_color: Option<&'a str>,
     hover_color: Option<&'a str>,

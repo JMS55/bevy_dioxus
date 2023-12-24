@@ -17,15 +17,21 @@ use std::{any::Any, mem, rc::Rc};
 
 // TODO: Other events
 pub mod events {
+    use bevy_mod_picking::pointer::PointerButton;
+
     super::impl_event! [
         ();
-        onclick
-        onclick_down
-        onclick_up
         onmouse_over
         onmouse_out
         onmouse_enter
         onmouse_exit
+    ];
+
+    super::impl_event! [
+        PointerButton;
+        onclick
+        onclick_down
+        onclick_up
     ];
 }
 
@@ -53,13 +59,13 @@ impl EventReaders {
     ) -> Vec<(Entity, &'static str, Rc<dyn Any>, bool)> {
         let mut events: Vec<(Entity, &'static str, Rc<dyn Any>, bool)> = Vec::new();
         for event in self.click.read(click) {
-            events.push((event.target, "click", Rc::new(()), true));
+            events.push((event.target, "click", Rc::new(event.button), true));
         }
         for event in self.click_down.read(click_down) {
-            events.push((event.target, "click_down", Rc::new(()), true));
+            events.push((event.target, "click_down", Rc::new(event.button), true));
         }
         for event in self.click_up.read(click_up) {
-            events.push((event.target, "click_up", Rc::new(()), true));
+            events.push((event.target, "click_up", Rc::new(event.button), true));
         }
         for event in self.mouse_over.read(mouse_over) {
             events.push((event.target, "mouse_over", Rc::new(()), false));

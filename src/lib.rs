@@ -30,6 +30,7 @@ pub mod prelude {
     pub use super::ecs_hooks::*;
     pub use super::elements::*;
     pub use super::{DioxusUiBundle, DioxusUiPlugin, DioxusUiRoot};
+    pub use bevy_mod_picking::pointer::PointerButton;
     pub use dioxus;
     pub use dioxus::prelude::*;
 }
