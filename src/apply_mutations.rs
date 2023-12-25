@@ -6,8 +6,9 @@ use bevy::{
     ecs::{entity::Entity, system::Command, world::World},
     hierarchy::{BuildWorldChildren, Children, DespawnRecursive, Parent},
     prelude::default,
-    render::color::Color,
+    render::{color::Color, view::Visibility},
     text::{Text, TextLayoutInfo, TextStyle},
+    transform::components::Transform,
     ui::{
         node_bundles::{NodeBundle, TextBundle},
         widget::TextFlags,
@@ -167,8 +168,26 @@ pub fn apply_mutations(
                     }
                 };
 
-                let (mut style, mut background_color, mut text) = world
-                    .query::<(&mut Style, &mut BackgroundColor, Option<&mut Text>)>()
+                let (
+                    mut style,
+                    mut border_color,
+                    mut outline,
+                    mut background_color,
+                    mut transform,
+                    mut visibility,
+                    mut z_index,
+                    mut text,
+                ) = world
+                    .query::<(
+                        &mut Style,
+                        &mut BorderColor,
+                        &mut Outline,
+                        &mut BackgroundColor,
+                        &mut Transform,
+                        &mut Visibility,
+                        &mut ZIndex,
+                        Option<&mut Text>,
+                    )>()
                     .get_mut(world, element_id_to_bevy_ui_entity[&id])
                     .unwrap();
 
@@ -176,7 +195,12 @@ pub fn apply_mutations(
                     name,
                     value,
                     &mut style,
+                    &mut border_color,
+                    &mut outline,
                     &mut background_color,
+                    &mut transform,
+                    &mut visibility,
+                    &mut z_index,
                     text.as_deref_mut(),
                 );
             }
@@ -210,12 +234,12 @@ pub struct BevyTemplate {
 
 enum BevyTemplateNode {
     Node {
-        style: (Style, BackgroundColor),
+        style: StyleComponents,
         children: Box<[Self]>,
     },
     TextNode {
         text: Text,
-        style: (Style, BackgroundColor),
+        style: StyleComponents,
         children: Box<[Self]>,
     },
     IntrinsicTextNode(Text),
@@ -242,9 +266,9 @@ impl BevyTemplateNode {
                 attrs,
                 children,
             } => {
-                let (style, background_color, _) = parse_template_attributes(attrs);
+                let (style, _) = parse_template_attributes(attrs);
                 Self::Node {
-                    style: (style, background_color),
+                    style,
                     children: children.iter().map(Self::from_dioxus).collect(),
                 }
             }
@@ -254,10 +278,10 @@ impl BevyTemplateNode {
                 attrs,
                 children,
             } => {
-                let (style, background_color, text) = parse_template_attributes(attrs);
+                let (style, text) = parse_template_attributes(attrs);
                 Self::TextNode {
                     text,
-                    style: (style, background_color),
+                    style,
                     children: children.iter().map(Self::from_dioxus).collect(),
                 }
             }
@@ -265,7 +289,7 @@ impl BevyTemplateNode {
                 Self::IntrinsicTextNode(Text::from_section(*text, TextStyle::default()))
             }
             TemplateNode::Dynamic { id: _ } => Self::Node {
-                style: (Style::default(), Color::NONE.into()),
+                style: StyleComponents::default(),
                 children: Box::new([]),
             },
             TemplateNode::DynamicText { id: _ } => {
@@ -290,8 +314,30 @@ impl BevyTemplateNode {
 
     fn spawn(&self, world: &mut World) -> Entity {
         match self {
-            BevyTemplateNode::Node {
-                style: (style, background_color),
+            BevyTemplateNode::Node { style, children } => {
+                let children = children
+                    .iter()
+                    .map(|child| child.spawn(world))
+                    .collect::<Box<[_]>>();
+                world
+                    .spawn((
+                        NodeBundle {
+                            style: style.style.clone(),
+                            border_color: style.border_color.clone(),
+                            background_color: style.background_color.clone(),
+                            transform: style.transform.clone(),
+                            visibility: style.visibility.clone(),
+                            z_index: style.z_index.clone(),
+                            ..default()
+                        },
+                        style.outline.clone(),
+                    ))
+                    .push_children(&children)
+                    .id()
+            }
+            BevyTemplateNode::TextNode {
+                text,
+                style,
                 children,
             } => {
                 let children = children
@@ -300,29 +346,21 @@ impl BevyTemplateNode {
                     .collect::<Box<[_]>>();
                 world
                     .spawn(NodeBundle {
-                        style: style.clone(),
-                        background_color: background_color.clone(),
+                        border_color: style.border_color.clone(),
                         ..default()
                     })
-                    .push_children(&children)
-                    .id()
-            }
-            BevyTemplateNode::TextNode {
-                text,
-                style: (style, background_color),
-                children,
-            } => {
-                let children = children
-                    .iter()
-                    .map(|child| child.spawn(world))
-                    .collect::<Box<[_]>>();
-                world
-                    .spawn(TextBundle {
-                        text: text.clone(),
-                        style: style.clone(),
-                        background_color: background_color.clone(),
-                        ..default()
-                    })
+                    .insert((
+                        TextBundle {
+                            text: text.clone(),
+                            style: style.style.clone(),
+                            background_color: style.background_color.clone(),
+                            transform: style.transform.clone(),
+                            visibility: style.visibility.clone(),
+                            z_index: style.z_index.clone(),
+                            ..default()
+                        },
+                        style.outline.clone(),
+                    ))
                     .push_children(&children)
                     .id()
             }
@@ -336,9 +374,8 @@ impl BevyTemplateNode {
     }
 }
 
-fn parse_template_attributes(attributes: &[TemplateAttribute]) -> (Style, BackgroundColor, Text) {
-    let mut style = Style::default();
-    let mut background_color = Color::NONE.into();
+fn parse_template_attributes(attributes: &[TemplateAttribute]) -> (StyleComponents, Text) {
+    let mut style = StyleComponents::default();
     let mut text = Text::from_section("", TextStyle::default());
     for attribute in attributes {
         if let TemplateAttribute::Static {
@@ -350,11 +387,40 @@ fn parse_template_attributes(attributes: &[TemplateAttribute]) -> (Style, Backgr
             set_attribute(
                 name,
                 value,
-                &mut style,
-                &mut background_color,
+                &mut style.style,
+                &mut style.border_color,
+                &mut style.outline,
+                &mut style.background_color,
+                &mut style.transform,
+                &mut style.visibility,
+                &mut style.z_index,
                 Some(&mut text),
             );
         }
     }
-    (style, background_color, text)
+    (style, text)
+}
+
+struct StyleComponents {
+    style: Style,
+    border_color: BorderColor,
+    outline: Outline,
+    background_color: BackgroundColor,
+    transform: Transform,
+    visibility: Visibility,
+    z_index: ZIndex,
+}
+
+impl Default for StyleComponents {
+    fn default() -> Self {
+        Self {
+            style: Default::default(),
+            border_color: Default::default(),
+            outline: Default::default(),
+            background_color: Color::NONE.into(),
+            transform: Default::default(),
+            visibility: Default::default(),
+            z_index: Default::default(),
+        }
+    }
 }
