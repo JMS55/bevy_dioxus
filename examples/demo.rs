@@ -28,7 +28,7 @@ fn main() {
 #[component]
 fn Editor(cx: Scope) -> Element {
     // TODO: When selected entity is despawned, need to reset this to None
-    let selected_entity = use_state(cx, || Option::<Entity>::None);
+    let selected_entity = use_state_send(cx, || Option::<Entity>::None);
 
     render! {
         node {
@@ -42,19 +42,23 @@ fn Editor(cx: Scope) -> Element {
 }
 
 #[component]
-fn SceneTree<'a>(cx: Scope, selected_entity: &'a UseState<Option<Entity>>) -> Element {
+fn SceneTree<'a>(cx: Scope, selected_entity: &'a UseStateSend<Option<Entity>>) -> Element {
     let entities = use_query_filtered::<(Entity, DebugName), Without<Node>>(cx);
     let entities = entities.query();
     let mut entities = entities.into_iter().collect::<Vec<_>>();
     entities.sort_by_key(|(entity, _)| *entity);
 
-    let spawn_entity = use_system(cx, |world: &mut World| {
-        world.spawn_empty();
+    let spawn_entity = use_system(cx, {
+        let selected_entity = (*selected_entity).clone();
+        move |world: &mut World| {
+            let new_entity = world.spawn_empty();
+            selected_entity.write(Some(new_entity.id()));
+        }
     });
 
     render! {
         node {
-            onclick: move |_| selected_entity.set(None),
+            onclick: move |_| selected_entity.write(None),
             flex_direction: "column",
             if entities.is_empty() {
                 rsx! { "No entities exist" }
@@ -63,16 +67,16 @@ fn SceneTree<'a>(cx: Scope, selected_entity: &'a UseState<Option<Entity>>) -> El
                     for (entity, name) in entities {
                         Button {
                             onclick: move |event: Event<PointerButton>| if *event.data == PointerButton::Primary {
-                                if Some(entity) == ***selected_entity {
-                                    selected_entity.set(None);
+                                if Some(entity) == *selected_entity.read() {
+                                    selected_entity.write(None);
                                 } else {
-                                    selected_entity.set(Some(entity));
+                                    selected_entity.write(Some(entity));
                                 }
                                 event.stop_propagation();
                             },
-                            base_color: if Some(entity) == ***selected_entity { Some(VIOLET_700) } else { None },
-                            click_color: if Some(entity) == ***selected_entity { Some(VIOLET_400) } else { None },
-                            hover_color: if Some(entity) == ***selected_entity { Some(VIOLET_500) } else { None },
+                            base_color: if Some(entity) == *selected_entity.read() { Some(VIOLET_700) } else { None },
+                            click_color: if Some(entity) == *selected_entity.read() { Some(VIOLET_400) } else { None },
+                            hover_color: if Some(entity) == *selected_entity.read() { Some(VIOLET_500) } else { None },
                             match name.name {
                                 Some(name) => format!("{name}"),
                                 _ => format!("Entity ({:?})", name.entity)
@@ -93,11 +97,11 @@ fn SceneTree<'a>(cx: Scope, selected_entity: &'a UseState<Option<Entity>>) -> El
 }
 
 #[component]
-fn EntityInspector<'a>(cx: Scope, selected_entity: &'a UseState<Option<Entity>>) -> Element {
+fn EntityInspector<'a>(cx: Scope, selected_entity: &'a UseStateSend<Option<Entity>>) -> Element {
     let world = use_world(cx);
     let type_registry = use_resource::<AppTypeRegistry>(cx).read();
     let components = selected_entity
-        .get()
+        .read()
         .map(|selected_entity| {
             let entity_ref = world.get_entity(selected_entity).unwrap();
             let mut components = entity_ref
@@ -118,7 +122,7 @@ fn EntityInspector<'a>(cx: Scope, selected_entity: &'a UseState<Option<Entity>>)
         .unwrap_or_default();
 
     render! {
-        if selected_entity.is_none() {
+        if selected_entity.read().is_none() {
             rsx! {
                 node {
                     margin: "8",

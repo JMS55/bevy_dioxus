@@ -9,6 +9,7 @@ mod events;
 mod hot_reload;
 mod parse_attributes;
 mod tick;
+mod use_state_send;
 
 use self::{
     apply_mutations::BevyTemplate,
@@ -29,6 +30,7 @@ use dioxus::core::{Element, ElementId, Scope, VirtualDom};
 pub mod prelude {
     pub use super::ecs_hooks::*;
     pub use super::elements::*;
+    pub use super::use_state_send::*;
     pub use super::{DioxusUiBundle, DioxusUiPlugin, DioxusUiRoot};
     pub use bevy_mod_picking::pointer::PointerButton;
     pub use dioxus;
