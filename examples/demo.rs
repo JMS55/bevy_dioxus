@@ -2,7 +2,10 @@ use bevy::{
     app::{App, Startup},
     core::{DebugName, Name},
     core_pipeline::core_2d::Camera2dBundle,
-    ecs::{entity::Entity, query::Without, system::Commands, world::World},
+    ecs::{
+        entity::Entity, query::Without, reflect::AppTypeRegistry, system::Commands, world::World,
+    },
+    reflect::TypeInfo,
     ui::{node_bundles::NodeBundle, Node},
     DefaultPlugins,
 };
@@ -92,30 +95,33 @@ fn SceneTree<'a>(cx: Scope, selected_entity: &'a UseState<Option<Entity>>) -> El
 #[component]
 fn EntityInspector<'a>(cx: Scope, selected_entity: &'a UseState<Option<Entity>>) -> Element {
     let world = use_world(cx);
-
-    let components = if let Some(selected_entity) = selected_entity.get() {
-        let entity_ref = world.get_entity(*selected_entity).unwrap();
-        let archetype = entity_ref.archetype();
-        let mut components = archetype
-            .components()
-            .map(|component_id| {
-                let info = world.components().get_info(component_id).unwrap();
-                let name = info.name();
-
-                (name, component_id, info.type_id(), info.layout().size())
-            })
-            .collect::<Vec<_>>();
-        components.sort_by(|(name_a, ..), (name_b, ..)| name_a.cmp(name_b));
-        components
-    } else {
-        vec![]
-    };
+    let type_registry = use_resource::<AppTypeRegistry>(cx).read();
+    let components = selected_entity
+        .get()
+        .map(|selected_entity| {
+            let entity_ref = world.get_entity(selected_entity).unwrap();
+            let mut components = entity_ref
+                .archetype()
+                .components()
+                .map(|component_id| {
+                    let component_info = world.components().get_info(component_id).unwrap();
+                    let type_info = component_info
+                        .type_id()
+                        .and_then(|type_id| type_registry.get_type_info(type_id));
+                    let (module, name) = component_info.name().rsplit_once("::").unwrap();
+                    (name, module, type_info)
+                })
+                .collect::<Vec<_>>();
+            components.sort_by_key(|(name, _, _)| *name);
+            components
+        })
+        .unwrap_or_default();
 
     render! {
         if selected_entity.is_none() {
             rsx! {
                 node {
-                    padding: "8",
+                    margin: "8",
                     "Select an entity to view its components"
                 }
             }
@@ -123,15 +129,45 @@ fn EntityInspector<'a>(cx: Scope, selected_entity: &'a UseState<Option<Entity>>)
             rsx! {
                 node {
                     flex_direction: "column",
-                    for (name, _component_id, _type_id, _size) in components {
+                    margin: "8",
+                    text { text: "Entity Inspector", text_size: "24" }
+                    for (name, module, type_info) in components {
                         node {
-                            padding: "8",
-                            background_color: NEUTRAL_800,
-                            "Component: {name}"
+                            flex_direction: "column",
+                            margin_bottom: "6",
+                            node {
+                                column_gap: "6",
+                                align_items: "baseline",
+                                text { text: name, text_size: "18" }
+                                text { text: module, text_size: "14", text_color: NEUTRAL_400 }
+                            }
+                            if let Some(type_info) = type_info {
+                                rsx!{ ComponentInspector { type_info: type_info } }
+                            }
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+#[component]
+fn ComponentInspector<'a>(cx: Scope, type_info: &'a TypeInfo) -> Element {
+    render! {
+        match type_info {
+            TypeInfo::Struct(info) => rsx! {
+                for field in info.iter() {
+                    format!("{}: {}", field.name(), field.type_path())
+                }
+            },
+            TypeInfo::TupleStruct(_) => rsx! { "TODO" },
+            TypeInfo::Tuple(_) => rsx! { "TODO" },
+            TypeInfo::List(_) => rsx! { "TODO" },
+            TypeInfo::Array(_) => rsx! { "TODO" },
+            TypeInfo::Map(_) => rsx! { "TODO" },
+            TypeInfo::Enum(_) => rsx! { "TODO" },
+            TypeInfo::Value(_) => rsx! { "TODO" },
         }
     }
 }
