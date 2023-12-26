@@ -175,7 +175,7 @@ pub fn set_attribute(
             None => *z_index = ZIndex::Local(parse_i32(value)),
             _ => panic!("Encountered invalid bevy_dioxus ZIndex `{value}`."),
         },
-        ("text", value) if text.is_some() => text.unwrap().sections[0] = value.into(),
+        ("text", value) if text.is_some() => text.unwrap().sections[0].value = value.to_owned(),
         ("text_direction", "inherit") if text.is_some() => style.direction = Direction::Inherit,
         ("text_direction", "left_to_right") if text.is_some() => {
             style.direction = Direction::LeftToRight;
