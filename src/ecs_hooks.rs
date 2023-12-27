@@ -13,8 +13,6 @@ use dioxus::{
     hooks::use_on_destroy,
 };
 
-pub use crate::deferred_system::use_system_scheduler;
-
 #[derive(Default)]
 pub(crate) struct EcsSubscriptions {
     pub resources: Box<HashMap<ComponentId, HashSet<ScopeId>>>,
@@ -84,14 +82,14 @@ pub fn use_resource<'a, T: Resource>(cx: &'a ScopeState) -> &'a T {
     world.resource()
 }
 
-pub fn use_query<'a, Q>(cx: &'a ScopeState) -> DioxusUiQuery<'a, Q, ()>
+pub fn use_query<'a, Q>(cx: &'a ScopeState) -> UseQuery<'a, Q, ()>
 where
     Q: ReadOnlyWorldQuery,
 {
     use_query_filtered(cx)
 }
 
-pub fn use_query_filtered<'a, Q, F>(cx: &'a ScopeState) -> DioxusUiQuery<'a, Q, F>
+pub fn use_query_filtered<'a, Q, F>(cx: &'a ScopeState) -> UseQuery<'a, Q, F>
 where
     Q: ReadOnlyWorldQuery,
     F: ReadOnlyWorldQuery,
@@ -111,18 +109,18 @@ where
         unsafe { &mut *subscription_manager }.remove(&scope_id);
     });
 
-    DioxusUiQuery {
+    UseQuery {
         query_state: QueryState::new(world),
         world_cell: world.as_unsafe_world_cell(),
     }
 }
 
-pub struct DioxusUiQuery<'a, Q: ReadOnlyWorldQuery, F: ReadOnlyWorldQuery> {
+pub struct UseQuery<'a, Q: ReadOnlyWorldQuery, F: ReadOnlyWorldQuery> {
     query_state: QueryState<Q, F>,
     world_cell: UnsafeWorldCell<'a>,
 }
 
-impl<'a, Q, F> DioxusUiQuery<'a, Q, F>
+impl<'a, Q, F> UseQuery<'a, Q, F>
 where
     Q: ReadOnlyWorldQuery,
     F: ReadOnlyWorldQuery,

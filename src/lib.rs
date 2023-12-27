@@ -28,7 +28,8 @@ use bevy::{
 use dioxus::core::{Element, ElementId, Scope, VirtualDom};
 
 pub mod prelude {
-    pub use super::ecs_hooks::*;
+    pub use super::deferred_system::use_system_scheduler;
+    pub use super::ecs_hooks::{use_query, use_query_filtered, use_resource, use_world};
     pub use super::elements::*;
     pub use super::use_state_send::*;
     pub use super::{DioxusUiBundle, DioxusUiPlugin, DioxusUiRoot};
