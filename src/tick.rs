@@ -6,6 +6,7 @@ use crate::{
     DioxusUiRoot, UiContext, UiRoot,
 };
 use bevy::{
+    asset::AssetServer,
     ecs::{
         entity::Entity,
         world::{Mut, World},
@@ -104,23 +105,31 @@ fn render_ui(root_entity: Entity, ui_root: &mut UiRoot, world: &mut World) {
     crate::hot_reload::update_templates(world, &mut ui_root.virtual_dom);
 
     if ui_root.needs_rebuild {
+        let mutations = ui_root.virtual_dom.rebuild();
+        world.resource_scope(|world, asset_server: Mut<AssetServer>| {
+            apply_mutations(
+                mutations,
+                &mut ui_root.element_id_to_bevy_ui_entity,
+                &mut ui_root.bevy_ui_entity_to_element_id,
+                &mut ui_root.templates,
+                root_entity,
+                world,
+                &asset_server,
+            );
+        });
+        ui_root.needs_rebuild = false;
+    }
+
+    let mutations = ui_root.virtual_dom.render_immediate();
+    world.resource_scope(|world, asset_server: Mut<AssetServer>| {
         apply_mutations(
-            ui_root.virtual_dom.rebuild(),
+            mutations,
             &mut ui_root.element_id_to_bevy_ui_entity,
             &mut ui_root.bevy_ui_entity_to_element_id,
             &mut ui_root.templates,
             root_entity,
             world,
+            &asset_server,
         );
-        ui_root.needs_rebuild = false;
-    }
-
-    apply_mutations(
-        ui_root.virtual_dom.render_immediate(),
-        &mut ui_root.element_id_to_bevy_ui_entity,
-        &mut ui_root.bevy_ui_entity_to_element_id,
-        &mut ui_root.templates,
-        root_entity,
-        world,
-    );
+    });
 }

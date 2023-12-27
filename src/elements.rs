@@ -93,4 +93,12 @@ pub mod dioxus_elements {
         pub const text_color: AttributeDescription = ("text_color", None, false);
         node_attributes!();
     }
+
+    pub struct image;
+    impl image {
+        pub const TAG_NAME: &'static str = "image";
+        pub const NAME_SPACE: Option<&'static str> = NAME_SPACE;
+        pub const image_asset_path: AttributeDescription = ("image_asset_path", None, false);
+        node_attributes!();
+    }
 }

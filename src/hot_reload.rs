@@ -43,6 +43,15 @@ impl HotReloadingContext for HotReloadContext {
                 return Some(attribute);
             }
         }
+        if element_name_rust == dioxus_elements::image::TAG_NAME {
+            let attribute = match attribute_name_rust {
+                "image_asset_path" => Some(("image_asset_path", None)),
+                _ => None,
+            };
+            if let Some(attribute) = attribute {
+                return Some(attribute);
+            }
+        }
         if let dioxus_elements::node::TAG_NAME | dioxus_elements::text::TAG_NAME = element_name_rust
         {
             match attribute_name_rust {
@@ -126,6 +135,10 @@ impl HotReloadingContext for HotReloadContext {
             dioxus_elements::text::TAG_NAME => Some((
                 dioxus_elements::text::TAG_NAME,
                 dioxus_elements::text::NAME_SPACE,
+            )),
+            dioxus_elements::image::TAG_NAME => Some((
+                dioxus_elements::image::TAG_NAME,
+                dioxus_elements::image::NAME_SPACE,
             )),
             _ => None,
         }

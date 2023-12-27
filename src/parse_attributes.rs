@@ -1,4 +1,5 @@
 use bevy::{
+    asset::{AssetPath, AssetServer},
     math::Quat,
     render::{color::Color, view::Visibility},
     text::{Text, TextAlignment},
@@ -18,6 +19,8 @@ pub fn set_attribute(
     visibility: &mut Visibility,
     z_index: &mut ZIndex,
     text: Option<&mut Text>,
+    image: Option<&mut UiImage>,
+    asset_server: &AssetServer,
 ) {
     #[allow(unused_variables, unreachable_code)]
     match (name, value) {
@@ -197,6 +200,9 @@ pub fn set_attribute(
         }
         ("text_color", value) if text.is_some() => {
             text.unwrap().sections[0].style.color = parse_color(value);
+        }
+        ("image_asset_path", value) if image.is_some() => {
+            image.unwrap().texture = asset_server.load(AssetPath::parse(value));
         }
         _ => panic!("Encountered unsupported bevy_dioxus attribute `{name}: {value}`."),
     }
