@@ -116,6 +116,7 @@ where
     }
 }
 
+// TODO: Don't think this actually works. EcsSubscriptions needs to handle this.
 pub fn use_event_reader<'a, E: Event>(cx: &'a ScopeState) -> EventIterator<'a, E> {
     let event_reader = cx.use_hook(|| ManualEventReader::default());
     let events = EcsContext::get_world(cx).resource::<Events<E>>();
