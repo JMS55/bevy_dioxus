@@ -13,7 +13,7 @@ mod use_state_send;
 
 use self::{
     apply_mutations::BevyTemplate,
-    deferred_system::DeferredSystemRegistry,
+    deferred_system::DeferredSystemRunQueue,
     ecs_hooks::EcsSubscriptions,
     events::{generate_mouse_enter_leave_events, EventReaders, MouseEnter, MouseExit},
     tick::tick_dioxus_ui,
@@ -47,7 +47,7 @@ impl Plugin for DioxusUiPlugin {
         >::default());
 
         app.init_non_send_resource::<UiContext>()
-            .init_resource::<DeferredSystemRegistry>()
+            .init_resource::<DeferredSystemRunQueue>()
             .init_resource::<EventReaders>()
             .add_event::<MouseEnter>()
             .add_event::<MouseExit>()

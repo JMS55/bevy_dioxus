@@ -48,13 +48,7 @@ fn SceneTree<'a>(cx: Scope, selected_entity: &'a UseStateSend<Option<Entity>>) -
     let mut entities = entities.into_iter().collect::<Vec<_>>();
     entities.sort_by_key(|(entity, _)| *entity);
 
-    let spawn_entity = use_system(cx, {
-        let selected_entity = (*selected_entity).clone();
-        move |world: &mut World| {
-            let new_entity = world.spawn_empty();
-            selected_entity.write(Some(new_entity.id()));
-        }
-    });
+    let system_scheduler = use_system_scheduler(cx);
 
     render! {
         node {
@@ -87,7 +81,13 @@ fn SceneTree<'a>(cx: Scope, selected_entity: &'a UseStateSend<Option<Entity>>) -
             }
             Button {
                 onclick: move |event: Event<PointerButton>| if *event.data == PointerButton::Primary {
-                    spawn_entity();
+                    system_scheduler.schedule({
+                        let selected_entity = (*selected_entity).clone();
+                        move |world: &mut World| {
+                            let new_entity = world.spawn_empty();
+                            selected_entity.write(Some(new_entity.id()));
+                        }
+                    });
                     event.stop_propagation();
                 },
                 text { text: "Spawn Entity", text_size: "18" }

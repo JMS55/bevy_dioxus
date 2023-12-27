@@ -1,6 +1,6 @@
 use crate::{
     apply_mutations::apply_mutations,
-    deferred_system::DeferredSystemRegistry,
+    deferred_system::DeferredSystemRunQueue,
     ecs_hooks::EcsContext,
     events::{bubble_event, EventReaders},
     DioxusUiRoot, UiContext, UiRoot,
@@ -12,7 +12,7 @@ use bevy::{
     },
     utils::HashMap,
 };
-use std::{any::Any, mem, rc::Rc, sync::Arc};
+use std::{any::Any, mem, rc::Rc};
 
 pub fn tick_dioxus_ui(world: &mut World) {
     run_deferred_systems(world);
@@ -55,19 +55,10 @@ pub fn tick_dioxus_ui(world: &mut World) {
 }
 
 fn run_deferred_systems(world: &mut World) {
-    for system_id in mem::take(&mut *world.resource_mut::<DeferredSystemRegistry>().run_queue) {
-        let _ = world.run_system(system_id);
+    for mut system in mem::take(&mut *world.resource_mut::<DeferredSystemRunQueue>().run_queue) {
+        system.initialize(world);
+        let _ = system.run((), world);
     }
-
-    world.resource_scope(|world, mut system_registry: Mut<DeferredSystemRegistry>| {
-        system_registry.ref_counts.retain(|system_id, ref_count| {
-            let cleanup = Arc::strong_count(ref_count) == 1;
-            if cleanup {
-                world.remove_system(*system_id).unwrap();
-            }
-            !cleanup
-        });
-    });
 }
 
 fn dispatch_ui_events(

@@ -1,9 +1,9 @@
-use crate::{deferred_system::new_deferred_system, UiContext};
+use crate::UiContext;
 use bevy::{
     ecs::{
         component::ComponentId,
         query::{QueryState, ReadOnlyWorldQuery},
-        system::{IntoSystem, Query, Resource},
+        system::{Query, Resource},
         world::{unsafe_world_cell::UnsafeWorldCell, World},
     },
     utils::{HashMap, HashSet},
@@ -12,6 +12,8 @@ use dioxus::{
     core::{ScopeId, ScopeState},
     hooks::use_on_destroy,
 };
+
+pub use crate::deferred_system::use_system_scheduler;
 
 #[derive(Default)]
 pub(crate) struct EcsSubscriptions {
@@ -25,7 +27,7 @@ pub(crate) struct EcsContext {
 }
 
 impl EcsContext {
-    fn get_world(cx: &ScopeState) -> &mut World {
+    pub fn get_world(cx: &ScopeState) -> &mut World {
         unsafe {
             &mut *cx
                 .consume_context::<EcsContext>()
@@ -113,15 +115,6 @@ where
         query_state: QueryState::new(world),
         world_cell: world.as_unsafe_world_cell(),
     }
-}
-
-pub fn use_system<S, M>(cx: &ScopeState, system: S) -> impl Fn() + Send + Sync + Copy
-where
-    S: IntoSystem<(), (), M> + 'static,
-    M: 'static,
-{
-    cx.use_hook(|| new_deferred_system(system, EcsContext::get_world(cx)))
-        .0
 }
 
 pub struct DioxusUiQuery<'a, Q: ReadOnlyWorldQuery, F: ReadOnlyWorldQuery> {
