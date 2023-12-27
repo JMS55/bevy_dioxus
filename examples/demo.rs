@@ -28,7 +28,7 @@ fn main() {
 #[component]
 fn Editor(cx: Scope) -> Element {
     // TODO: When selected entity is despawned, need to reset this to None
-    let selected_entity = use_state_send(cx, || Option::<Entity>::None);
+    let selected_entity = use_state_sendable(cx, || Option::<Entity>::None);
 
     render! {
         node {
@@ -42,7 +42,7 @@ fn Editor(cx: Scope) -> Element {
 }
 
 #[component]
-fn SceneTree<'a>(cx: Scope, selected_entity: &'a UseStateSend<Option<Entity>>) -> Element {
+fn SceneTree<'a>(cx: Scope, selected_entity: &'a UseStateSendable<Option<Entity>>) -> Element {
     let entities = use_query_filtered::<(Entity, DebugName), Without<Node>>(cx);
     let entities = entities.query();
     let mut entities = entities.into_iter().collect::<Vec<_>>();
@@ -97,7 +97,10 @@ fn SceneTree<'a>(cx: Scope, selected_entity: &'a UseStateSend<Option<Entity>>) -
 }
 
 #[component]
-fn EntityInspector<'a>(cx: Scope, selected_entity: &'a UseStateSend<Option<Entity>>) -> Element {
+fn EntityInspector<'a>(
+    cx: Scope,
+    selected_entity: &'a UseStateSendable<Option<Entity>>,
+) -> Element {
     let world = use_world(cx);
     let type_registry = use_resource::<AppTypeRegistry>(cx).read();
     let components = selected_entity

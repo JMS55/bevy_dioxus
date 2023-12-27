@@ -9,7 +9,7 @@ mod events;
 mod hot_reload;
 mod parse_attributes;
 mod tick;
-mod use_state_send;
+mod use_state_sendable;
 
 use self::{
     apply_mutations::BevyTemplate,
@@ -33,7 +33,7 @@ pub mod prelude {
         use_event_reader, use_query, use_query_filtered, use_resource, use_world,
     };
     pub use super::elements::*;
-    pub use super::use_state_send::*;
+    pub use super::use_state_sendable::*;
     pub use super::{DioxusUiBundle, DioxusUiPlugin, DioxusUiRoot};
     pub use bevy_mod_picking::pointer::PointerButton;
     pub use dioxus;

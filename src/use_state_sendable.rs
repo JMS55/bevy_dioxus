@@ -3,11 +3,11 @@
 use dioxus::prelude::ScopeState;
 use std::sync::{Arc, RwLock, RwLockReadGuard};
 
-pub fn use_state_send<T: Send + Sync + 'static>(
+pub fn use_state_sendable<T: Send + Sync + 'static>(
     cx: &ScopeState,
     init_rw: impl FnOnce() -> T,
-) -> &mut UseStateSend<T> {
-    let hook = cx.use_hook(|| UseStateSend {
+) -> &mut UseStateSendable<T> {
+    let hook = cx.use_hook(|| UseStateSendable {
         update: cx.schedule_update(),
         value: Arc::new(RwLock::new(init_rw())),
     });
@@ -15,12 +15,12 @@ pub fn use_state_send<T: Send + Sync + 'static>(
     hook
 }
 
-pub struct UseStateSend<T> {
+pub struct UseStateSendable<T> {
     update: Arc<dyn Fn() + Send + Sync + 'static>,
     value: Arc<RwLock<T>>,
 }
 
-impl<T> Clone for UseStateSend<T> {
+impl<T> Clone for UseStateSendable<T> {
     fn clone(&self) -> Self {
         Self {
             update: self.update.clone(),
@@ -29,7 +29,7 @@ impl<T> Clone for UseStateSend<T> {
     }
 }
 
-impl<T> UseStateSend<T> {
+impl<T> UseStateSendable<T> {
     pub fn read(&self) -> RwLockReadGuard<'_, T> {
         self.value.read().expect("Lock poisoned")
     }
