@@ -2,6 +2,7 @@ use crate::UiContext;
 use bevy::{
     ecs::{
         component::ComponentId,
+        event::{Event, EventIterator, Events, ManualEventReader},
         query::{QueryState, ReadOnlyWorldQuery},
         system::{Query, Resource},
         world::{unsafe_world_cell::UnsafeWorldCell, World},
@@ -113,6 +114,16 @@ where
         query_state: QueryState::new(world),
         world_cell: world.as_unsafe_world_cell(),
     }
+}
+
+pub fn use_event_reader<'a, E: Event>(cx: &'a ScopeState) -> EventIterator<'a, E> {
+    let event_reader = cx.use_hook(|| ManualEventReader::default());
+    let events = EcsContext::get_world(cx).resource::<Events<E>>();
+    let new_events = event_reader.read(events);
+    if new_events.len() != 0 {
+        (cx.schedule_update())();
+    }
+    new_events
 }
 
 pub struct UseQuery<'a, Q: ReadOnlyWorldQuery, F: ReadOnlyWorldQuery> {
