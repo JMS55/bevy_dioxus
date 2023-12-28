@@ -34,7 +34,7 @@ impl HotReloadingContext for HotReloadContext {
             let attribute = match attribute_name_rust {
                 "text" => Some(("text", None)),
                 "text_direction" => Some(("text_direction", None)),
-                "text_alignment" => Some(("text_alignment", None)),
+                "text_multiline_alignment" => Some(("text_multiline_alignment", None)),
                 "text_size" => Some(("text_size", None)),
                 "text_color" => Some(("text_color", None)),
                 _ => None,

@@ -186,13 +186,13 @@ pub fn set_attribute(
         ("text_direction", "right_to_left") if text.is_some() => {
             style.direction = Direction::RightToLeft;
         }
-        ("text_alignment", "left") if text.is_some() => {
+        ("text_multiline_alignment", "left") if text.is_some() => {
             text.unwrap().alignment = TextAlignment::Left;
         }
-        ("text_alignment", "center") if text.is_some() => {
+        ("text_multiline_alignment", "center") if text.is_some() => {
             text.unwrap().alignment = TextAlignment::Center;
         }
-        ("text_alignment", "right") if text.is_some() => {
+        ("text_multiline_alignment", "right") if text.is_some() => {
             text.unwrap().alignment = TextAlignment::Right;
         }
         ("text_size", value) if text.is_some() => {
