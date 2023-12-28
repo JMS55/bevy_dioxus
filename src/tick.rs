@@ -93,6 +93,14 @@ fn schedule_ui_renders_from_ecs_subscriptions(ui_root: &mut UiRoot, world: &Worl
             }
         }
     }
+
+    for (new_events_exist, scope_ids) in ecs_subscriptions.events.values() {
+        if new_events_exist(world) {
+            for scope_id in scope_ids {
+                ui_root.virtual_dom.mark_dirty(*scope_id);
+            }
+        }
+    }
 }
 
 fn render_ui(root_entity: Entity, ui_root: &mut UiRoot, world: &mut World) {

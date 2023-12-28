@@ -13,10 +13,12 @@ use dioxus::{
     core::{ScopeId, ScopeState},
     hooks::use_on_destroy,
 };
+use std::any::TypeId;
 
 #[derive(Default)]
 pub(crate) struct EcsSubscriptions {
     pub resources: Box<HashMap<ComponentId, HashSet<ScopeId>>>,
+    pub events: Box<HashMap<TypeId, (Box<dyn Fn(&World) -> bool>, HashSet<ScopeId>)>>,
     pub world_and_queries: Box<HashSet<ScopeId>>,
 }
 
@@ -116,15 +118,12 @@ where
     }
 }
 
-// TODO: Don't think this actually works. EcsSubscriptions needs to handle this.
 pub fn use_event_reader<'a, E: Event>(cx: &'a ScopeState) -> EventIterator<'a, E> {
+    // TODO: Register the subscription
+
     let event_reader = cx.use_hook(|| ManualEventReader::default());
     let events = EcsContext::get_world(cx).resource::<Events<E>>();
-    let new_events = event_reader.read(events);
-    if new_events.len() != 0 {
-        (cx.schedule_update())();
-    }
-    new_events
+    event_reader.read(events)
 }
 
 pub struct UseQuery<'a, Q: ReadOnlyWorldQuery, F: ReadOnlyWorldQuery> {
