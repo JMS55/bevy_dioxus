@@ -115,8 +115,9 @@ fn EntityInspector<'a>(
                     let type_info = component_info
                         .type_id()
                         .and_then(|type_id| type_registry.get_type_info(type_id));
-                    let (module, name) = component_info.name().rsplit_once("::").unwrap();
-                    (name, module, type_info)
+                    let (_, name) = component_info.name().rsplit_once("::").unwrap();
+                    let (crate_name, _) = component_info.name().split_once("::").unwrap();
+                    (name, crate_name, type_info)
                 })
                 .collect::<Vec<_>>();
             components.sort_by_key(|(name, _, _)| *name);
@@ -138,7 +139,7 @@ fn EntityInspector<'a>(
                     flex_direction: "column",
                     margin: "8",
                     text { text: "Entity Inspector", text_size: "24" }
-                    for (name, module, type_info) in components {
+                    for (name, crate_name, type_info) in components {
                         node {
                             flex_direction: "column",
                             margin_bottom: "6",
@@ -146,10 +147,10 @@ fn EntityInspector<'a>(
                                 column_gap: "6",
                                 align_items: "baseline",
                                 text { text: name, text_size: "18" }
-                                text { text: module, text_size: "14", text_color: NEUTRAL_400 }
+                                text { text: crate_name, text_size: "14", text_color: NEUTRAL_400 }
                             }
                             if let Some(type_info) = type_info {
-                                rsx!{ ComponentInspector { type_info: type_info } }
+                                rsx! { ComponentInspector { type_info: type_info } }
                             }
                         }
                     }
