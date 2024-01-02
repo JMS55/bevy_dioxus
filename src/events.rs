@@ -239,4 +239,4 @@ macro_rules! impl_event {
     };
 
 }
-pub(self) use impl_event;
+use impl_event;
