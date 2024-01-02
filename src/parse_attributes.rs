@@ -173,7 +173,7 @@ pub fn set_attribute(
         ("visibility", "inherited") => *visibility = Visibility::Inherited,
         ("visibility", "hidden") => *visibility = Visibility::Hidden,
         ("visibility", "visible") => *visibility = Visibility::Visible,
-        ("z_index", value) => match value.split_once(":") {
+        ("z_index", value) => match value.split_once(':') {
             Some(("local", value)) => *z_index = ZIndex::Local(parse_i32(value)),
             Some(("global", value)) => *z_index = ZIndex::Global(parse_i32(value)),
             None => *z_index = ZIndex::Local(parse_i32(value)),
