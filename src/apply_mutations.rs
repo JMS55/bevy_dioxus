@@ -360,14 +360,14 @@ impl BevyTemplateNode {
                     .spawn((
                         NodeBundle {
                             style: style.style.clone(),
-                            border_color: style.border_color.clone(),
-                            background_color: style.background_color.clone(),
-                            transform: style.transform.clone(),
-                            visibility: style.visibility.clone(),
-                            z_index: style.z_index.clone(),
+                            border_color: style.border_color,
+                            background_color: style.background_color,
+                            transform: style.transform,
+                            visibility: style.visibility,
+                            z_index: style.z_index,
                             ..default()
                         },
-                        style.outline.clone(),
+                        style.outline,
                     ))
                     .push_children(&children)
                     .id()
@@ -383,20 +383,20 @@ impl BevyTemplateNode {
                     .collect::<Box<[_]>>();
                 world
                     .spawn(NodeBundle {
-                        border_color: style.border_color.clone(),
+                        border_color: style.border_color,
                         ..default()
                     })
                     .insert((
                         TextBundle {
                             text: text.clone(),
                             style: style.style.clone(),
-                            background_color: style.background_color.clone(),
-                            transform: style.transform.clone(),
-                            visibility: style.visibility.clone(),
-                            z_index: style.z_index.clone(),
+                            background_color: style.background_color,
+                            transform: style.transform,
+                            visibility: style.visibility,
+                            z_index: style.z_index,
                             ..default()
                         },
-                        style.outline.clone(),
+                        style.outline,
                     ))
                     .push_children(&children)
                     .id()
@@ -412,20 +412,20 @@ impl BevyTemplateNode {
                     .collect::<Box<[_]>>();
                 world
                     .spawn(NodeBundle {
-                        border_color: style.border_color.clone(),
+                        border_color: style.border_color,
                         ..default()
                     })
                     .insert((
                         ImageBundle {
                             image: image.clone(),
                             style: style.style.clone(),
-                            background_color: style.background_color.clone(),
-                            transform: style.transform.clone(),
-                            visibility: style.visibility.clone(),
-                            z_index: style.z_index.clone(),
+                            background_color: style.background_color,
+                            transform: style.transform,
+                            visibility: style.visibility,
+                            z_index: style.z_index,
                             ..default()
                         },
-                        style.outline.clone(),
+                        style.outline,
                     ))
                     .push_children(&children)
                     .id()
