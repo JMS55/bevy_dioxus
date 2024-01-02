@@ -39,7 +39,7 @@ impl EcsContext {
     }
 }
 
-pub fn use_world<'a>(cx: &'a ScopeState) -> &'a World {
+pub fn use_world(cx: &ScopeState) -> &World {
     let world = EcsContext::get_world(cx);
 
     let scope_id = cx.scope_id();
@@ -58,7 +58,7 @@ pub fn use_world<'a>(cx: &'a ScopeState) -> &'a World {
     world
 }
 
-pub fn use_resource<'a, T: Resource>(cx: &'a ScopeState) -> &'a T {
+pub fn use_resource<T: Resource>(cx: &ScopeState) -> &T {
     let world = EcsContext::get_world(cx);
 
     let resource_id = world.components().resource_id::<T>().unwrap();
@@ -86,14 +86,14 @@ pub fn use_resource<'a, T: Resource>(cx: &'a ScopeState) -> &'a T {
     world.resource()
 }
 
-pub fn use_query<'a, Q>(cx: &'a ScopeState) -> UseQuery<'a, Q, ()>
+pub fn use_query<Q>(cx: &ScopeState) -> UseQuery<'_, Q, ()>
 where
     Q: ReadOnlyWorldQuery,
 {
     use_query_filtered(cx)
 }
 
-pub fn use_query_filtered<'a, Q, F>(cx: &'a ScopeState) -> UseQuery<'a, Q, F>
+pub fn use_query_filtered<Q, F>(cx: &ScopeState) -> UseQuery<'_, Q, F>
 where
     Q: ReadOnlyWorldQuery,
     F: ReadOnlyWorldQuery,
@@ -119,7 +119,7 @@ where
     }
 }
 
-pub fn use_event_reader<'a, E: Event>(cx: &'a ScopeState) -> EventIterator<'a, E> {
+pub fn use_event_reader<E: Event>(cx: &ScopeState) -> EventIterator<'_, E> {
     // TODO: Register the subscription
 
     let event_reader = cx.use_hook(|| ManualEventReader::default());
