@@ -210,9 +210,7 @@ pub fn set_attribute(
 }
 
 fn parse_color(hex: &str) -> Color {
-    Color::hex(hex).expect(&format!(
-        "Encountered invalid bevy_dioxus Color hex `{hex}`."
-    ))
+    Color::hex(hex).unwrap_or_else(|_| panic!("Encountered invalid bevy_dioxus Color hex `{hex}`."))
 }
 
 fn parse_f32(float: &str) -> f32 {
