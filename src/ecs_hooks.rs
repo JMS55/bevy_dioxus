@@ -28,6 +28,7 @@ pub(crate) struct EcsContext {
 }
 
 impl EcsContext {
+    #[allow(clippy::mut_from_ref)]
     pub fn get_world(cx: &ScopeState) -> &mut World {
         unsafe {
             &mut *cx
