@@ -123,7 +123,7 @@ where
 pub fn use_event_reader<E: Event>(cx: &ScopeState) -> EventIterator<'_, E> {
     // TODO: Register the subscription
 
-    let event_reader = cx.use_hook(|| ManualEventReader::default());
+    let event_reader = cx.use_hook(ManualEventReader::default);
     let events = EcsContext::get_world(cx).resource::<Events<E>>();
     event_reader.read(events)
 }
