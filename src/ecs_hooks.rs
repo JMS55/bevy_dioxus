@@ -18,6 +18,7 @@ use std::any::TypeId;
 #[derive(Default)]
 pub(crate) struct EcsSubscriptions {
     pub resources: Box<HashMap<ComponentId, HashSet<ScopeId>>>,
+    #[allow(clippy::type_complexity)]
     pub events: Box<HashMap<TypeId, (Box<dyn Fn(&World) -> bool>, HashSet<ScopeId>)>>,
     pub world_and_queries: Box<HashSet<ScopeId>>,
 }

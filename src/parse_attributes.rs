@@ -8,6 +8,7 @@ use bevy::{
 };
 use std::f32::consts::PI;
 
+#[allow(clippy::too_many_arguments)]
 pub fn set_attribute(
     name: &str,
     value: &str,

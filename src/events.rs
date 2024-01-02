@@ -47,6 +47,7 @@ pub struct EventReaders {
 }
 
 impl EventReaders {
+    #[allow(clippy::too_many_arguments)]
     pub fn read_events(
         &mut self,
         click: &Events<Pointer<Click>>,
