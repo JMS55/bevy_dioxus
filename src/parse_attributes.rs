@@ -8,6 +8,7 @@ use bevy::{
 };
 use std::f32::consts::PI;
 
+#[allow(clippy::too_many_arguments)]
 pub fn set_attribute(
     name: &str,
     value: &str,
@@ -172,7 +173,7 @@ pub fn set_attribute(
         ("visibility", "inherited") => *visibility = Visibility::Inherited,
         ("visibility", "hidden") => *visibility = Visibility::Hidden,
         ("visibility", "visible") => *visibility = Visibility::Visible,
-        ("z_index", value) => match value.split_once(":") {
+        ("z_index", value) => match value.split_once(':') {
             Some(("local", value)) => *z_index = ZIndex::Local(parse_i32(value)),
             Some(("global", value)) => *z_index = ZIndex::Global(parse_i32(value)),
             None => *z_index = ZIndex::Local(parse_i32(value)),
@@ -209,9 +210,7 @@ pub fn set_attribute(
 }
 
 fn parse_color(hex: &str) -> Color {
-    Color::hex(hex).expect(&format!(
-        "Encountered invalid bevy_dioxus Color hex `{hex}`."
-    ))
+    Color::hex(hex).unwrap_or_else(|_| panic!("Encountered invalid bevy_dioxus Color hex `{hex}`."))
 }
 
 fn parse_f32(float: &str) -> f32 {

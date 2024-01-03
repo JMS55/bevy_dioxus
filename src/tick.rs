@@ -58,7 +58,7 @@ pub fn tick_dioxus_ui(world: &mut World) {
 fn run_deferred_systems(world: &mut World) {
     for mut system in mem::take(&mut *world.resource_mut::<DeferredSystemRunQueue>().run_queue) {
         system.initialize(world);
-        let _ = system.run((), world);
+        system.run((), world);
     }
 }
 
