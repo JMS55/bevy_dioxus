@@ -37,7 +37,7 @@ pub mod prelude {
     pub use super::{DioxusUiBundle, DioxusUiPlugin, DioxusUiRoot};
     pub use bevy_mod_picking::pointer::PointerButton;
     pub use dioxus;
-    pub use dioxus::prelude::*;
+    pub use dioxus::prelude::{Event as DioxusEvent, *};
 }
 
 pub struct DioxusUiPlugin;

@@ -1,14 +1,4 @@
-use bevy::{
-    app::{App, Startup},
-    core::{DebugName, Name},
-    core_pipeline::core_2d::Camera2dBundle,
-    ecs::{
-        entity::Entity, query::Without, reflect::AppTypeRegistry, system::Commands, world::World,
-    },
-    reflect::TypeInfo,
-    ui::{node_bundles::NodeBundle, Node},
-    DefaultPlugins,
-};
+use bevy::{prelude::*, reflect::TypeInfo};
 use bevy_dioxus::{colors::*, prelude::*};
 use bevy_mod_picking::DefaultPickingPlugins;
 
@@ -60,7 +50,7 @@ fn SceneTree<'a>(cx: Scope, selected_entity: &'a UseStateSendable<Option<Entity>
                 rsx! {
                     for (entity, name) in entities {
                         Button {
-                            onclick: move |event: Event<PointerButton>| if *event.data == PointerButton::Primary {
+                            onclick: move |event: DioxusEvent<PointerButton>| if *event.data == PointerButton::Primary {
                                 if Some(entity) == *selected_entity.read() {
                                     selected_entity.write(None);
                                 } else {
@@ -80,7 +70,7 @@ fn SceneTree<'a>(cx: Scope, selected_entity: &'a UseStateSendable<Option<Entity>
                 }
             }
             Button {
-                onclick: move |event: Event<PointerButton>| if *event.data == PointerButton::Primary {
+                onclick: move |event: DioxusEvent<PointerButton>| if *event.data == PointerButton::Primary {
                     system_scheduler.schedule({
                         let selected_entity = (*selected_entity).clone();
                         move |world: &mut World| {
@@ -208,7 +198,7 @@ fn Button<'a>(cx: Scope<'a, ButtonProps<'a>>) -> Element<'a> {
 
 #[derive(Props)]
 struct ButtonProps<'a> {
-    onclick: EventHandler<'a, Event<PointerButton>>,
+    onclick: EventHandler<'a, DioxusEvent<PointerButton>>,
     base_color: Option<&'a str>,
     click_color: Option<&'a str>,
     hover_color: Option<&'a str>,
