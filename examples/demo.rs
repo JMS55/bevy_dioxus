@@ -33,7 +33,7 @@ fn Editor(cx: Scope) -> Element {
 
 #[component]
 fn SceneTree<'a>(cx: Scope, selected_entity: &'a UseStateSendable<Option<Entity>>) -> Element {
-    let entities = use_query_filtered::<(Entity, DebugName), Without<Node>>(cx);
+    let mut entities = use_query_filtered::<(Entity, DebugName), Without<Node>>(cx);
     let entities = entities.query();
     let mut entities = entities.into_iter().collect::<Vec<_>>();
     entities.sort_by_key(|(entity, _)| *entity);
