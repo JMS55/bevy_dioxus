@@ -3,9 +3,9 @@ use bevy::{
     ecs::{
         component::ComponentId,
         event::{Event, EventIterator, Events, ManualEventReader},
-        query::{QueryState, ReadOnlyWorldQuery},
-        system::{Query, Resource},
-        world::{unsafe_world_cell::UnsafeWorldCell, World},
+        query::ReadOnlyWorldQuery,
+        system::{Query, Resource, SystemState},
+        world::World,
     },
     utils::{HashMap, HashSet},
 };
@@ -115,8 +115,8 @@ where
     });
 
     UseQuery {
-        query_state: QueryState::new(world),
-        world_cell: world.as_unsafe_world_cell(),
+        system_state: SystemState::new(world),
+        world_ref: world,
     }
 }
 
@@ -128,9 +128,9 @@ pub fn use_event_reader<E: Event>(cx: &ScopeState) -> EventIterator<'_, E> {
     event_reader.read(events)
 }
 
-pub struct UseQuery<'a, Q: ReadOnlyWorldQuery, F: ReadOnlyWorldQuery> {
-    query_state: QueryState<Q, F>,
-    world_cell: UnsafeWorldCell<'a>,
+pub struct UseQuery<'a, Q: ReadOnlyWorldQuery + 'static, F: ReadOnlyWorldQuery + 'static> {
+    system_state: SystemState<Query<'static, 'static, Q, F>>,
+    world_ref: &'a World,
 }
 
 impl<'a, Q, F> UseQuery<'a, Q, F>
@@ -138,15 +138,7 @@ where
     Q: ReadOnlyWorldQuery,
     F: ReadOnlyWorldQuery,
 {
-    pub fn query(&self) -> Query<Q, F> {
-        unsafe {
-            Query::new(
-                self.world_cell,
-                &self.query_state,
-                self.world_cell.last_change_tick(),
-                self.world_cell.change_tick(),
-                true,
-            )
-        }
+    pub fn query(&mut self) -> Query<Q, F> {
+        self.system_state.get(self.world_ref)
     }
 }
