@@ -1,6 +1,5 @@
 use crate::ecs_hooks::EcsContext;
 use bevy::ecs::system::{IntoSystem, Resource, System};
-use dioxus::core::ScopeState;
 
 #[derive(Resource, Default)]
 pub struct DeferredSystemRunQueue {
@@ -25,10 +24,10 @@ impl DeferredSystemScheduler {
 unsafe impl Send for DeferredSystemScheduler {}
 unsafe impl Sync for DeferredSystemScheduler {}
 
-pub fn use_system_scheduler(cx: &ScopeState) -> DeferredSystemScheduler {
+pub fn use_system_scheduler() -> DeferredSystemScheduler {
     DeferredSystemScheduler {
         run_queue: Box::as_mut(
-            &mut EcsContext::get_world(cx)
+            &mut EcsContext::get_world()
                 .resource_mut::<DeferredSystemRunQueue>()
                 .run_queue,
         ),

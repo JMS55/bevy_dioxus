@@ -2,7 +2,7 @@ use crate::UiContext;
 use bevy::{
     ecs::{
         component::ComponentId,
-        event::{Event, EventIterator, Events, ManualEventReader},
+        // event::{Event, EventIterator, Events, ManualEventReader},
         query::{QueryFilter, ReadOnlyQueryData},
         system::{Query, Resource, SystemState},
         world::World,
@@ -10,8 +10,8 @@ use bevy::{
     utils::{HashMap, HashSet},
 };
 use dioxus::{
-    core::{ScopeId, ScopeState},
-    hooks::use_on_destroy,
+    dioxus_core::{use_hook, ScopeId},
+    prelude::{consume_context, current_scope_id, use_drop},
 };
 use std::any::TypeId;
 
@@ -29,22 +29,16 @@ pub(crate) struct EcsContext {
 }
 
 impl EcsContext {
-    #[allow(clippy::mut_from_ref)]
-    pub fn get_world(cx: &ScopeState) -> &mut World {
-        unsafe {
-            &mut *cx
-                .consume_context::<EcsContext>()
-                .expect("Must be used from a dioxus component within a DioxusUiRoot bevy component")
-                .world
-        }
+    pub fn get_world<'a>() -> &'a mut World {
+        unsafe { &mut *consume_context::<EcsContext>().world }
     }
 }
 
-pub fn use_world(cx: &ScopeState) -> &World {
-    let world = EcsContext::get_world(cx);
+pub fn use_world<'a>() -> &'a World {
+    let world = EcsContext::get_world();
 
-    let scope_id = cx.scope_id();
-    let subscription_manager = *cx.use_hook(|| {
+    let scope_id = current_scope_id().unwrap();
+    let subscription_manager = use_hook(|| {
         let subscription_manager = &mut world
             .non_send_resource_mut::<UiContext>()
             .subscriptions
@@ -52,19 +46,19 @@ pub fn use_world(cx: &ScopeState) -> &World {
         subscription_manager.insert(scope_id);
         Box::as_mut(subscription_manager) as *mut HashSet<ScopeId>
     });
-    use_on_destroy(cx, move || {
+    use_drop(move || {
         unsafe { &mut *subscription_manager }.remove(&scope_id);
     });
 
     world
 }
 
-pub fn use_resource<T: Resource>(cx: &ScopeState) -> &T {
-    let world = EcsContext::get_world(cx);
+pub fn use_resource<'a, T: Resource>() -> &'a T {
+    let world = EcsContext::get_world();
 
     let resource_id = world.components().resource_id::<T>().unwrap();
-    let scope_id = cx.scope_id();
-    let subscription_manager = *cx.use_hook(|| {
+    let scope_id = current_scope_id().unwrap();
+    let subscription_manager = use_hook(|| {
         let subscription_manager = &mut world
             .non_send_resource_mut::<UiContext>()
             .subscriptions
@@ -75,7 +69,7 @@ pub fn use_resource<T: Resource>(cx: &ScopeState) -> &T {
             .insert(scope_id);
         Box::as_mut(subscription_manager) as *mut HashMap<ComponentId, HashSet<ScopeId>>
     });
-    use_on_destroy(cx, move || {
+    use_drop(move || {
         let subscription_manager = &mut unsafe { &mut *subscription_manager };
         let resource_subscriptions = subscription_manager.get_mut(&resource_id).unwrap();
         resource_subscriptions.remove(&scope_id);
@@ -87,22 +81,22 @@ pub fn use_resource<T: Resource>(cx: &ScopeState) -> &T {
     world.resource()
 }
 
-pub fn use_query<Q>(cx: &ScopeState) -> UseQuery<'_, Q, ()>
+pub fn use_query<'a, Q>() -> UseQuery<'a, Q, ()>
 where
     Q: ReadOnlyQueryData,
 {
-    use_query_filtered(cx)
+    use_query_filtered()
 }
 
-pub fn use_query_filtered<Q, F>(cx: &ScopeState) -> UseQuery<'_, Q, F>
+pub fn use_query_filtered<'a, Q, F>() -> UseQuery<'a, Q, F>
 where
     Q: ReadOnlyQueryData,
     F: QueryFilter,
 {
-    let world = EcsContext::get_world(cx);
+    let world = EcsContext::get_world();
 
-    let scope_id = cx.scope_id();
-    let subscription_manager = *cx.use_hook(|| {
+    let scope_id = current_scope_id().unwrap();
+    let subscription_manager = use_hook(|| {
         let subscription_manager = &mut world
             .non_send_resource_mut::<UiContext>()
             .subscriptions
@@ -110,7 +104,7 @@ where
         subscription_manager.insert(scope_id);
         Box::as_mut(subscription_manager) as *mut HashSet<ScopeId>
     });
-    use_on_destroy(cx, move || {
+    use_drop(move || {
         unsafe { &mut *subscription_manager }.remove(&scope_id);
     });
 
@@ -120,13 +114,14 @@ where
     }
 }
 
-pub fn use_event_reader<E: Event>(cx: &ScopeState) -> EventIterator<'_, E> {
-    // TODO: Register the subscription
+// TODOZ
+// pub fn use_event_reader<'a, E: Event>() -> EventIterator<'a, E> {
+//     // TODO: Register the subscription
 
-    let event_reader = cx.use_hook(ManualEventReader::default);
-    let events = EcsContext::get_world(cx).resource::<Events<E>>();
-    event_reader.read(events)
-}
+//     let event_reader = use_hook(ManualEventReader::default);
+//     let events = EcsContext::get_world().resource::<Events<E>>();
+//     event_reader.read(events)
+// }
 
 pub struct UseQuery<'a, Q: ReadOnlyQueryData + 'static, F: QueryFilter + 'static> {
     system_state: SystemState<Query<'static, 'static, Q, F>>,

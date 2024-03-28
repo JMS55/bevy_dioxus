@@ -21,223 +21,270 @@ use bevy::{
     },
     utils::HashMap,
 };
-use dioxus::core::{
-    BorrowedAttributeValue, ElementId, Mutation, Mutations, Template, TemplateAttribute,
-    TemplateNode,
+use dioxus::dioxus_core::{
+    AttributeValue, ElementId, Template, TemplateAttribute, TemplateNode, WriteMutations,
 };
 
-pub fn apply_mutations(
-    mutations: Mutations,
-    element_id_to_bevy_ui_entity: &mut HashMap<ElementId, Entity>,
-    bevy_ui_entity_to_element_id: &mut EntityHashMap<ElementId>,
-    templates: &mut HashMap<String, BevyTemplate>,
-    root_entity: Entity,
-    world: &mut World,
-    asset_server: &AssetServer,
-) {
-    for new_template in mutations.templates {
-        templates.insert(
-            new_template.name.to_owned(),
-            BevyTemplate::from_dioxus(&new_template, asset_server),
+pub struct MutationApplier<'a> {
+    element_id_to_bevy_ui_entity: &'a mut HashMap<ElementId, Entity>,
+    bevy_ui_entity_to_element_id: &'a mut EntityHashMap<ElementId>,
+    templates: &'a mut HashMap<String, BevyTemplate>,
+    world: &'a mut World,
+    asset_server: &'a AssetServer,
+    stack: Vec<Entity>,
+}
+
+impl<'a> MutationApplier<'a> {
+    pub fn new(
+        element_id_to_bevy_ui_entity: &'a mut HashMap<ElementId, Entity>,
+        bevy_ui_entity_to_element_id: &'a mut EntityHashMap<ElementId>,
+        templates: &'a mut HashMap<String, BevyTemplate>,
+        root_entity: Entity,
+        world: &'a mut World,
+        asset_server: &'a AssetServer,
+    ) -> Self {
+        element_id_to_bevy_ui_entity.insert(ElementId(0), root_entity);
+        bevy_ui_entity_to_element_id.insert(root_entity, ElementId(0));
+
+        Self {
+            element_id_to_bevy_ui_entity,
+            bevy_ui_entity_to_element_id,
+            templates,
+            world,
+            asset_server,
+            stack: vec![root_entity],
+        }
+    }
+}
+
+impl<'a> WriteMutations for MutationApplier<'a> {
+    fn register_template(&mut self, template: Template) {
+        self.templates.insert(
+            template.name.to_owned(),
+            BevyTemplate::from_dioxus(&template, self.asset_server),
         );
     }
 
-    element_id_to_bevy_ui_entity.insert(ElementId(0), root_entity);
-    bevy_ui_entity_to_element_id.insert(root_entity, ElementId(0));
-    let mut stack = vec![root_entity];
-
-    for edit in mutations.edits {
-        match edit {
-            Mutation::AppendChildren { id, m } => {
-                let mut parent = world.entity_mut(element_id_to_bevy_ui_entity[&id]);
-                for child in stack.drain((stack.len() - m)..) {
-                    parent.add_child(child);
-                }
-            }
-            Mutation::AssignId { path, id } => {
-                let mut entity = *stack.last().unwrap();
-                for index in path {
-                    entity = world.entity(entity).get::<Children>().unwrap()[*index as usize];
-                }
-                element_id_to_bevy_ui_entity.insert(id, entity);
-                bevy_ui_entity_to_element_id.insert(entity, id);
-            }
-            Mutation::CreatePlaceholder { id } => {
-                let entity = world.spawn(NodeBundle::default()).id();
-                element_id_to_bevy_ui_entity.insert(id, entity);
-                bevy_ui_entity_to_element_id.insert(entity, id);
-                stack.push(entity);
-            }
-            Mutation::CreateTextNode { value, id } => {
-                let entity = BevyTemplateNode::from_dioxus(
-                    &TemplateNode::Text { text: value },
-                    asset_server,
-                )
-                .spawn(world);
-                element_id_to_bevy_ui_entity.insert(id, entity);
-                bevy_ui_entity_to_element_id.insert(entity, id);
-                stack.push(entity);
-            }
-            Mutation::HydrateText { path, value, id } => {
-                let mut entity = *stack.last().unwrap();
-                for index in path {
-                    entity = world.entity(entity).get::<Children>().unwrap()[*index as usize];
-                }
-                world.entity_mut(entity).insert((
-                    Text::from_section(value, TextStyle::default()),
-                    TextLayoutInfo::default(),
-                    TextFlags::default(),
-                    ContentSize::default(),
-                ));
-                element_id_to_bevy_ui_entity.insert(id, entity);
-                bevy_ui_entity_to_element_id.insert(entity, id);
-            }
-            Mutation::LoadTemplate { name, index, id } => {
-                let entity = templates[name].roots[index].spawn(world);
-                element_id_to_bevy_ui_entity.insert(id, entity);
-                bevy_ui_entity_to_element_id.insert(entity, id);
-                stack.push(entity);
-            }
-            Mutation::ReplaceWith { id, m } => {
-                let existing = element_id_to_bevy_ui_entity[&id];
-                let existing_parent = world.entity(existing).get::<Parent>().unwrap().get();
-                let mut existing_parent = world.entity_mut(existing_parent);
-
-                let existing_index = existing_parent
-                    .get::<Children>()
-                    .unwrap()
-                    .iter()
-                    .position(|child| *child == existing)
-                    .unwrap();
-                existing_parent.insert_children(existing_index, &stack.split_off(stack.len() - m));
-
-                DespawnRecursive { entity: existing }.apply(world);
-                // TODO: We're not removing child entities from the element maps
-                if let Some(existing_element_id) = bevy_ui_entity_to_element_id.remove(&existing) {
-                    element_id_to_bevy_ui_entity.remove(&existing_element_id);
-                }
-            }
-            Mutation::ReplacePlaceholder { path, m } => {
-                let mut existing = stack[stack.len() - m - 1];
-                for index in path {
-                    existing = world.entity(existing).get::<Children>().unwrap()[*index as usize];
-                }
-                let existing_parent = world.entity(existing).get::<Parent>().unwrap().get();
-                let mut existing_parent = world.entity_mut(existing_parent);
-
-                let existing_index = existing_parent
-                    .get::<Children>()
-                    .unwrap()
-                    .iter()
-                    .position(|child| *child == existing)
-                    .unwrap();
-                existing_parent.insert_children(existing_index, &stack.split_off(stack.len() - m));
-
-                DespawnRecursive { entity: existing }.apply(world);
-                // TODO: We're not removing child entities from the element maps
-                if let Some(existing_element_id) = bevy_ui_entity_to_element_id.remove(&existing) {
-                    element_id_to_bevy_ui_entity.remove(&existing_element_id);
-                }
-            }
-            Mutation::InsertAfter { id, m } => {
-                let entity = element_id_to_bevy_ui_entity[&id];
-                let parent = world.entity(entity).get::<Parent>().unwrap().get();
-                let mut parent = world.entity_mut(parent);
-                let index = parent
-                    .get::<Children>()
-                    .unwrap()
-                    .iter()
-                    .position(|child| *child == entity)
-                    .unwrap();
-                parent.insert_children(index + 1, &stack.split_off(stack.len() - m));
-            }
-            Mutation::InsertBefore { id, m } => {
-                let existing = element_id_to_bevy_ui_entity[&id];
-                let parent = world.entity(existing).get::<Parent>().unwrap().get();
-                let mut parent = world.entity_mut(parent);
-                let index = parent
-                    .get::<Children>()
-                    .unwrap()
-                    .iter()
-                    .position(|child| *child == existing)
-                    .unwrap();
-                parent.insert_children(index, &stack.split_off(stack.len() - m));
-            }
-            Mutation::SetAttribute {
-                name,
-                value,
-                id,
-                ns: _,
-            } => {
-                let value = match value {
-                    BorrowedAttributeValue::Text(value) => value,
-                    BorrowedAttributeValue::None => todo!("Remove the attribute"),
-                    value => {
-                        panic!("Encountered unsupported bevy_dioxus attribute `{name}: {value:?}`.")
-                    }
-                };
-
-                let (
-                    mut style,
-                    mut border_color,
-                    mut outline,
-                    mut background_color,
-                    mut transform,
-                    mut visibility,
-                    mut z_index,
-                    mut text,
-                    mut image,
-                ) = world
-                    .query::<(
-                        &mut Style,
-                        &mut BorderColor,
-                        &mut Outline,
-                        &mut BackgroundColor,
-                        &mut Transform,
-                        &mut Visibility,
-                        &mut ZIndex,
-                        Option<&mut Text>,
-                        Option<&mut UiImage>,
-                    )>()
-                    .get_mut(world, element_id_to_bevy_ui_entity[&id])
-                    .unwrap();
-
-                set_attribute(
-                    name,
-                    value,
-                    &mut style,
-                    &mut border_color,
-                    &mut outline,
-                    &mut background_color,
-                    &mut transform,
-                    &mut visibility,
-                    &mut z_index,
-                    text.as_deref_mut(),
-                    image.as_deref_mut(),
-                    asset_server,
-                );
-            }
-            Mutation::SetText { value, id } => {
-                world
-                    .entity_mut(element_id_to_bevy_ui_entity[&id])
-                    .insert(Text::from_section(value, TextStyle::default()));
-            }
-            Mutation::NewEventListener { name, id } => {
-                insert_event_listener(name, world.entity_mut(element_id_to_bevy_ui_entity[&id]));
-            }
-            Mutation::RemoveEventListener { name, id } => {
-                remove_event_listener(name, world.entity_mut(element_id_to_bevy_ui_entity[&id]));
-            }
-            Mutation::Remove { id } => {
-                let entity = element_id_to_bevy_ui_entity[&id];
-                DespawnRecursive { entity }.apply(world);
-                // TODO: We're not removing child entities from the element maps
-                if let Some(existing_element_id) = bevy_ui_entity_to_element_id.remove(&entity) {
-                    element_id_to_bevy_ui_entity.remove(&existing_element_id);
-                }
-            }
-            Mutation::PushRoot { id } => stack.push(element_id_to_bevy_ui_entity[&id]),
+    fn append_children(&mut self, id: ElementId, m: usize) {
+        let mut parent = self
+            .world
+            .entity_mut(self.element_id_to_bevy_ui_entity[&id]);
+        for child in self.stack.drain((self.stack.len() - m)..) {
+            parent.add_child(child);
         }
+    }
+
+    fn assign_node_id(&mut self, path: &'static [u8], id: ElementId) {
+        let mut entity = *self.stack.last().unwrap();
+        for index in path {
+            entity = self.world.entity(entity).get::<Children>().unwrap()[*index as usize];
+        }
+        self.element_id_to_bevy_ui_entity.insert(id, entity);
+        self.bevy_ui_entity_to_element_id.insert(entity, id);
+    }
+
+    fn create_placeholder(&mut self, id: ElementId) {
+        let entity = self.world.spawn(NodeBundle::default()).id();
+        self.element_id_to_bevy_ui_entity.insert(id, entity);
+        self.bevy_ui_entity_to_element_id.insert(entity, id);
+        self.stack.push(entity);
+    }
+
+    fn create_text_node(&mut self, value: &str, id: ElementId) {
+        let entity =
+            BevyTemplateNode::IntrinsicTextNode(Text::from_section(value, TextStyle::default()))
+                .spawn(self.world);
+        self.element_id_to_bevy_ui_entity.insert(id, entity);
+        self.bevy_ui_entity_to_element_id.insert(entity, id);
+        self.stack.push(entity);
+    }
+
+    fn hydrate_text_node(&mut self, path: &'static [u8], value: &str, id: ElementId) {
+        let mut entity = *self.stack.last().unwrap();
+        for index in path {
+            entity = self.world.entity(entity).get::<Children>().unwrap()[*index as usize];
+        }
+        self.world.entity_mut(entity).insert((
+            Text::from_section(value, TextStyle::default()),
+            TextLayoutInfo::default(),
+            TextFlags::default(),
+            ContentSize::default(),
+        ));
+        self.element_id_to_bevy_ui_entity.insert(id, entity);
+        self.bevy_ui_entity_to_element_id.insert(entity, id);
+    }
+
+    fn load_template(&mut self, name: &'static str, index: usize, id: ElementId) {
+        let entity = self.templates[name].roots[index].spawn(self.world);
+        self.element_id_to_bevy_ui_entity.insert(id, entity);
+        self.bevy_ui_entity_to_element_id.insert(entity, id);
+        self.stack.push(entity);
+    }
+
+    fn replace_node_with(&mut self, id: ElementId, m: usize) {
+        let existing = self.element_id_to_bevy_ui_entity[&id];
+        let existing_parent = self.world.entity(existing).get::<Parent>().unwrap().get();
+        let mut existing_parent = self.world.entity_mut(existing_parent);
+
+        let existing_index = existing_parent
+            .get::<Children>()
+            .unwrap()
+            .iter()
+            .position(|child| *child == existing)
+            .unwrap();
+        existing_parent
+            .insert_children(existing_index, &self.stack.split_off(self.stack.len() - m));
+
+        DespawnRecursive { entity: existing }.apply(self.world);
+        // TODO: We're not removing child entities from the element maps
+        if let Some(existing_element_id) = self.bevy_ui_entity_to_element_id.remove(&existing) {
+            self.element_id_to_bevy_ui_entity
+                .remove(&existing_element_id);
+        }
+    }
+
+    fn replace_placeholder_with_nodes(&mut self, path: &'static [u8], m: usize) {
+        let mut existing = self.stack[self.stack.len() - m - 1];
+        for index in path {
+            existing = self.world.entity(existing).get::<Children>().unwrap()[*index as usize];
+        }
+        let existing_parent = self.world.entity(existing).get::<Parent>().unwrap().get();
+        let mut existing_parent = self.world.entity_mut(existing_parent);
+
+        let existing_index = existing_parent
+            .get::<Children>()
+            .unwrap()
+            .iter()
+            .position(|child| *child == existing)
+            .unwrap();
+        existing_parent
+            .insert_children(existing_index, &self.stack.split_off(self.stack.len() - m));
+
+        DespawnRecursive { entity: existing }.apply(self.world);
+        // TODO: We're not removing child entities from the element maps
+        if let Some(existing_element_id) = self.bevy_ui_entity_to_element_id.remove(&existing) {
+            self.element_id_to_bevy_ui_entity
+                .remove(&existing_element_id);
+        }
+    }
+
+    fn insert_nodes_after(&mut self, id: ElementId, m: usize) {
+        let entity = self.element_id_to_bevy_ui_entity[&id];
+        let parent = self.world.entity(entity).get::<Parent>().unwrap().get();
+        let mut parent = self.world.entity_mut(parent);
+        let index = parent
+            .get::<Children>()
+            .unwrap()
+            .iter()
+            .position(|child| *child == entity)
+            .unwrap();
+        parent.insert_children(index + 1, &self.stack.split_off(self.stack.len() - m));
+    }
+
+    fn insert_nodes_before(&mut self, id: ElementId, m: usize) {
+        let existing = self.element_id_to_bevy_ui_entity[&id];
+        let parent = self.world.entity(existing).get::<Parent>().unwrap().get();
+        let mut parent = self.world.entity_mut(parent);
+        let index = parent
+            .get::<Children>()
+            .unwrap()
+            .iter()
+            .position(|child| *child == existing)
+            .unwrap();
+        parent.insert_children(index, &self.stack.split_off(self.stack.len() - m));
+    }
+
+    fn set_attribute(
+        &mut self,
+        name: &'static str,
+        _ns: Option<&'static str>,
+        value: &AttributeValue,
+        id: ElementId,
+    ) {
+        let value = match value {
+            AttributeValue::Text(value) => value,
+            AttributeValue::None => todo!("Remove the attribute"),
+            value => {
+                panic!("Encountered unsupported bevy_dioxus attribute `{name}: {value:?}`.")
+            }
+        };
+
+        let (
+            mut style,
+            mut border_color,
+            mut outline,
+            mut background_color,
+            mut transform,
+            mut visibility,
+            mut z_index,
+            mut text,
+            mut image,
+        ) = self
+            .world
+            .query::<(
+                &mut Style,
+                &mut BorderColor,
+                &mut Outline,
+                &mut BackgroundColor,
+                &mut Transform,
+                &mut Visibility,
+                &mut ZIndex,
+                Option<&mut Text>,
+                Option<&mut UiImage>,
+            )>()
+            .get_mut(self.world, self.element_id_to_bevy_ui_entity[&id])
+            .unwrap();
+
+        set_attribute(
+            name,
+            &value,
+            &mut style,
+            &mut border_color,
+            &mut outline,
+            &mut background_color,
+            &mut transform,
+            &mut visibility,
+            &mut z_index,
+            text.as_deref_mut(),
+            image.as_deref_mut(),
+            self.asset_server,
+        );
+    }
+
+    fn set_node_text(&mut self, value: &str, id: ElementId) {
+        self.world
+            .entity_mut(self.element_id_to_bevy_ui_entity[&id])
+            .insert(Text::from_section(value, TextStyle::default()));
+    }
+
+    fn create_event_listener(&mut self, name: &'static str, id: ElementId) {
+        insert_event_listener(
+            &name,
+            self.world
+                .entity_mut(self.element_id_to_bevy_ui_entity[&id]),
+        );
+    }
+
+    fn remove_event_listener(&mut self, name: &'static str, id: ElementId) {
+        remove_event_listener(
+            &name,
+            self.world
+                .entity_mut(self.element_id_to_bevy_ui_entity[&id]),
+        );
+    }
+
+    fn remove_node(&mut self, id: ElementId) {
+        let entity = self.element_id_to_bevy_ui_entity[&id];
+        DespawnRecursive { entity }.apply(self.world);
+        // TODO: We're not removing child entities from the element maps
+        if let Some(existing_element_id) = self.bevy_ui_entity_to_element_id.remove(&entity) {
+            self.element_id_to_bevy_ui_entity
+                .remove(&existing_element_id);
+        }
+    }
+
+    fn push_root(&mut self, id: ElementId) {
+        self.stack.push(self.element_id_to_bevy_ui_entity[&id]);
     }
 }
 

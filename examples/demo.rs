@@ -1,10 +1,18 @@
-use bevy::{prelude::*, reflect::TypeInfo};
+use bevy::{log::LogPlugin, prelude::*, reflect::TypeInfo};
 use bevy_dioxus::{colors::*, prelude::*};
 use bevy_mod_picking::DefaultPickingPlugins;
 
 fn main() {
     App::new()
-        .add_plugins((DefaultPlugins, DioxusUiPlugin, DefaultPickingPlugins))
+        .add_plugins((
+            // Remove LogPlugin configuration once https://github.com/bevyengine/bevy/issues/12758 is fixed
+            DefaultPlugins.set(LogPlugin {
+                filter: "dioxus_core=warn,wgpu=error,naga=warn".to_owned(),
+                ..default()
+            }),
+            DioxusUiPlugin,
+            DefaultPickingPlugins,
+        ))
         .add_systems(Startup, |mut commands: Commands| {
             commands.spawn(DioxusUiBundle {
                 dioxus_ui_root: DioxusUiRoot(Editor),
@@ -16,67 +24,62 @@ fn main() {
 }
 
 #[component]
-fn Editor(cx: Scope) -> Element {
+fn Editor() -> Element {
     // TODO: When selected entity is despawned, need to reset this to None
-    let selected_entity = use_state_sendable(cx, || Option::<Entity>::None);
+    let selected_entity = use_signal_sync(|| Option::<Entity>::None);
 
-    render! {
+    rsx! {
         node {
             width: "100vw",
             height: "100vh",
             justify_content: "space_between",
-            SceneTree { selected_entity: selected_entity }
-            EntityInspector { selected_entity: selected_entity }
+            SceneTree { selected_entity }
+            EntityInspector { selected_entity }
         }
     }
 }
 
 #[component]
-fn SceneTree<'a>(cx: Scope, selected_entity: &'a UseStateSendable<Option<Entity>>) -> Element {
-    let mut entities = use_query_filtered::<(Entity, DebugName), Without<Node>>(cx);
+fn SceneTree(selected_entity: Signal<Option<Entity>, SyncStorage>) -> Element {
+    let mut entities = use_query_filtered::<(Entity, DebugName), Without<Node>>();
     let entities = entities.query();
     let mut entities = entities.into_iter().collect::<Vec<_>>();
     entities.sort_by_key(|(entity, _)| *entity);
 
-    let system_scheduler = use_system_scheduler(cx);
+    let system_scheduler = use_system_scheduler();
 
-    render! {
+    rsx! {
         node {
-            onclick: move |_| selected_entity.write(None),
+            onclick: move |_| selected_entity.set(None),
             flex_direction: "column",
             if entities.is_empty() {
-                rsx! { "No entities exist" }
+                "No entities exist"
             } else {
-                rsx! {
-                    for (entity, name) in entities {
-                        Button {
-                            onclick: move |event: DioxusEvent<PointerButton>| if *event.data == PointerButton::Primary {
-                                if Some(entity) == *selected_entity.read() {
-                                    selected_entity.write(None);
-                                } else {
-                                    selected_entity.write(Some(entity));
-                                }
-                                event.stop_propagation();
-                            },
-                            base_color: if Some(entity) == *selected_entity.read() { Some(VIOLET_700) } else { None },
-                            click_color: if Some(entity) == *selected_entity.read() { Some(VIOLET_400) } else { None },
-                            hover_color: if Some(entity) == *selected_entity.read() { Some(VIOLET_500) } else { None },
-                            match name.name {
-                                Some(name) => format!("{name}"),
-                                _ => format!("Entity ({:?})", name.entity)
+                for (entity, name) in entities {
+                    Button {
+                        onclick: move |event: DioxusEvent<PointerButton>| if *event.data == PointerButton::Primary {
+                            if Some(entity) == selected_entity() {
+                                selected_entity.set(None);
+                            } else {
+                                selected_entity.set(Some(entity));
                             }
+                            event.stop_propagation();
+                        },
+                        base_color: if Some(entity) == selected_entity() { Some(VIOLET_700.to_owned()) } else { None },
+                        click_color: if Some(entity) == selected_entity() { Some(VIOLET_400.to_owned()) } else { None },
+                        hover_color: if Some(entity) == selected_entity() { Some(VIOLET_500.to_owned()) } else { None },
+                        match name.name {
+                            Some(name) => format!("{name}"),
+                            _ => format!("Entity ({:?})", name.entity)
                         }
                     }
                 }
             }
             Button {
                 onclick: move |event: DioxusEvent<PointerButton>| if *event.data == PointerButton::Primary {
-                    system_scheduler.schedule({
-                        let selected_entity = (*selected_entity).clone();
-                        move |world: &mut World| {
-                            let new_entity = world.spawn_empty();
-                            selected_entity.write(Some(new_entity.id()));
-                        }
+                    system_scheduler.schedule(move |world: &mut World| {
+                        let new_entity = world.spawn_empty();
+                        selected_entity.set(Some(new_entity.id()));
                     });
                     event.stop_propagation();
                 },
@@ -87,14 +90,10 @@ fn SceneTree<'a>(cx: Scope, selected_entity: &'a UseStateSendable<Option<Entity>
 }
 
 #[component]
-fn EntityInspector<'a>(
-    cx: Scope,
-    selected_entity: &'a UseStateSendable<Option<Entity>>,
-) -> Element {
-    let world = use_world(cx);
-    let type_registry = use_resource::<AppTypeRegistry>(cx).read();
-    let components = selected_entity
-        .read()
+fn EntityInspector(selected_entity: ReadOnlySignal<Option<Entity>, SyncStorage>) -> Element {
+    let world = use_world();
+    let type_registry = use_resource::<AppTypeRegistry>().read();
+    let components = selected_entity()
         .map(|selected_entity| {
             let entity_ref = world.get_entity(selected_entity).unwrap();
             let mut components = entity_ref
@@ -115,33 +114,29 @@ fn EntityInspector<'a>(
         })
         .unwrap_or_default();
 
-    render! {
-        if selected_entity.read().is_none() {
-            rsx! {
-                node {
-                    margin: "8",
-                    "Select an entity to view its components"
-                }
+    rsx! {
+        if selected_entity().is_none() {
+            node {
+                margin: "8",
+                "Select an entity to view its components"
             }
         } else {
-            rsx! {
-                node {
-                    flex_direction: "column",
-                    margin: "8",
-                    text { text: "Entity Inspector", text_size: "24" }
-                    for (name, crate_name, type_info) in components {
+            node {
+                flex_direction: "column",
+                margin: "8",
+                text { text: "Entity Inspector", text_size: "24" }
+                for (name, crate_name, type_info) in components {
+                    node {
+                        flex_direction: "column",
+                        margin_bottom: "6",
                         node {
-                            flex_direction: "column",
-                            margin_bottom: "6",
-                            node {
-                                column_gap: "6",
-                                align_items: "baseline",
-                                text { text: name, text_size: "18" }
-                                text { text: crate_name, text_size: "14", text_color: NEUTRAL_400 }
-                            }
-                            if let Some(type_info) = type_info {
-                                rsx! { ComponentInspector { type_info: type_info } }
-                            }
+                            column_gap: "6",
+                            align_items: "baseline",
+                            text { text: name, text_size: "18" }
+                            text { text: crate_name, text_size: "14", text_color: NEUTRAL_400 }
+                        }
+                        if let Some(type_info) = type_info {
+                            { component_inspector(type_info) }
                         }
                     }
                 }
@@ -150,13 +145,13 @@ fn EntityInspector<'a>(
     }
 }
 
-#[component]
-fn ComponentInspector<'a>(cx: Scope, type_info: &'a TypeInfo) -> Element {
-    render! {
+// TODO: Ideally this would be a component
+fn component_inspector<'a>(type_info: &'a TypeInfo) -> Element {
+    rsx! {
         match type_info {
             TypeInfo::Struct(info) => rsx! {
                 for field in info.iter() {
-                    format!("{}: {}", field.name(), field.type_path())
+                    { format!("{}: {}", field.name(), field.type_path()) }
                 }
             },
             TypeInfo::TupleStruct(_) => rsx! { "TODO" },
@@ -171,36 +166,36 @@ fn ComponentInspector<'a>(cx: Scope, type_info: &'a TypeInfo) -> Element {
 }
 
 #[allow(non_snake_case)]
-fn Button<'a>(cx: Scope<'a, ButtonProps<'a>>) -> Element<'a> {
-    let clicked = use_state(cx, || false);
-    let hovered = use_state(cx, || false);
-    let background_color = if **clicked {
-        cx.props.click_color.unwrap_or(NEUTRAL_500)
-    } else if **hovered {
-        cx.props.hover_color.unwrap_or(NEUTRAL_600)
+fn Button(props: ButtonProps) -> Element {
+    let mut clicked = use_signal(|| false);
+    let mut hovered = use_signal(|| false);
+    let background_color = if clicked() {
+        props.click_color.unwrap_or(NEUTRAL_500.to_owned())
+    } else if hovered() {
+        props.hover_color.unwrap_or(NEUTRAL_600.to_owned())
     } else {
-        cx.props.base_color.unwrap_or(NEUTRAL_800)
+        props.base_color.unwrap_or(NEUTRAL_800.to_owned())
     };
 
-    render! {
+    rsx! {
         node {
-            onclick: move |event| cx.props.onclick.call(event),
-            onclick_down: |event| if *event.data == PointerButton::Primary { clicked.set(true) },
-            onclick_up: |event| if *event.data == PointerButton::Primary { clicked.set(false) },
-            onmouse_enter: |_| hovered.set(true),
-            onmouse_exit: |_| { hovered.set(false); clicked.set(false) },
+            onclick: move |event| props.onclick.call(event),
+            onclick_down: move |event| if *event.data == PointerButton::Primary { clicked.set(true) },
+            onclick_up: move |event| if *event.data == PointerButton::Primary { clicked.set(false) },
+            onmouse_enter: move |_| hovered.set(true),
+            onmouse_exit: move |_| { hovered.set(false); clicked.set(false) },
             padding: "8",
-            background_color: background_color,
-            &cx.props.children
+            background_color,
+            { &props.children }
         }
     }
 }
 
-#[derive(Props)]
-struct ButtonProps<'a> {
-    onclick: EventHandler<'a, DioxusEvent<PointerButton>>,
-    base_color: Option<&'a str>,
-    click_color: Option<&'a str>,
-    hover_color: Option<&'a str>,
-    children: Element<'a>,
+#[derive(Props, PartialEq, Clone)]
+struct ButtonProps {
+    onclick: EventHandler<DioxusEvent<PointerButton>>,
+    base_color: Option<String>,
+    click_color: Option<String>,
+    hover_color: Option<String>,
+    children: Element,
 }

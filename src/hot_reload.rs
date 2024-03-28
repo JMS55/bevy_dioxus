@@ -1,23 +1,26 @@
 use crate::prelude::dioxus_elements;
 use bevy::ecs::world::World;
-use dioxus::core::{Template, VirtualDom};
+use dioxus::dioxus_core::{Template, VirtualDom};
 use dioxus_hot_reload::{connect, HotReloadMsg};
 use dioxus_rsx::HotReloadingContext;
 use std::sync::mpsc::{channel, Receiver};
 
 pub fn update_templates(world: &mut World, virtual_dom: &mut VirtualDom) {
-    if !world.contains_non_send::<Receiver<Template<'static>>>() {
+    if !world.contains_non_send::<Receiver<Template>>() {
         let (updated_templates_sender, updated_templates_receiver) = channel();
         connect(move |msg| match msg {
             HotReloadMsg::UpdateTemplate(updated_templated) => {
                 let _ = updated_templates_sender.send(updated_templated);
             }
             HotReloadMsg::Shutdown => {}
+            HotReloadMsg::UpdateAsset(_) => {
+                panic!("Dioxus assets are not supported by bevy_dioxus");
+            }
         });
         world.insert_non_send_resource(updated_templates_receiver);
     }
 
-    let updated_templates_receiver = world.non_send_resource_mut::<Receiver<Template<'static>>>();
+    let updated_templates_receiver = world.non_send_resource_mut::<Receiver<Template>>();
     while let Ok(updated_templated) = updated_templates_receiver.try_recv() {
         virtual_dom.replace_template(updated_templated);
     }

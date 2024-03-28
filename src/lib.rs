@@ -9,7 +9,6 @@ mod events;
 mod hot_reload;
 mod parse_attributes;
 mod tick;
-mod use_state_sendable;
 
 use self::{
     apply_mutations::BevyTemplate,
@@ -30,15 +29,18 @@ use bevy::{
     ui::{node_bundles::NodeBundle, ui_focus_system},
     utils::HashMap,
 };
-use dioxus::core::{Element, ElementId, Scope, VirtualDom};
+use dioxus::dioxus_core::{Element, ElementId, VirtualDom};
 
 pub mod prelude {
     pub use super::deferred_system::use_system_scheduler;
     pub use super::ecs_hooks::{
-        use_event_reader, use_query, use_query_filtered, use_resource, use_world,
+        use_query,
+        use_query_filtered,
+        use_resource,
+        use_world,
+        // use_event_reader, TODO
     };
     pub use super::elements::*;
-    pub use super::use_state_sendable::*;
     pub use super::{DioxusUiBundle, DioxusUiPlugin, DioxusUiRoot};
     pub use bevy_mod_picking::pointer::PointerButton;
     pub use dioxus;
@@ -74,7 +76,7 @@ pub struct DioxusUiBundle {
 }
 
 #[derive(Component, Deref, Hash, PartialEq, Eq, Clone, Copy)]
-pub struct DioxusUiRoot(pub fn(Scope) -> Element);
+pub struct DioxusUiRoot(pub fn() -> Element);
 
 #[derive(Default)]
 struct UiContext {

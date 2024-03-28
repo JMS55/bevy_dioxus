@@ -11,7 +11,6 @@ use bevy::{
     ui::RelativeCursorPosition,
 };
 use bevy_mod_picking::events::{Click, Down, Out, Over, Pointer, Up};
-use dioxus::core::ScopeState;
 use std::{any::Any, mem, rc::Rc};
 
 // TODO: Other events
@@ -208,7 +207,7 @@ pub struct MouseExit {
 // ----------------------------------------------------------------------------
 
 pub trait EventReturn<P>: Sized {
-    fn spawn(self, _cx: &ScopeState) {}
+    fn spawn(self) {}
 }
 
 impl EventReturn<()> for () {}
@@ -218,24 +217,31 @@ macro_rules! impl_event {
         $data:ty;
         $(
             $( #[$attr:meta] )*
-            $name:ident
+            $name:ident $(: $js_name:literal)?
         )*
     ) => {
         $(
             $( #[$attr] )*
             #[inline]
-            pub fn $name<'a, E: crate::events::EventReturn<T>, T>(_cx: &'a dioxus::core::ScopeState, mut _f: impl FnMut(dioxus::core::Event<$data>) -> E + 'a) -> dioxus::core::Attribute<'a> {
-                dioxus::core::Attribute::new(
-                    stringify!($name),
-                    _cx.listener(move |e: dioxus::core::Event<$data>| {
-                        _f(e).spawn(_cx);
+            pub fn $name<E: crate::events::EventReturn<T>, T>(mut _f: impl FnMut(dioxus::dioxus_core::Event<$data>) -> E + 'static) -> dioxus::dioxus_core::Attribute {
+                dioxus::dioxus_core::Attribute::new(
+                    crate::events::impl_event!(@name $name $($js_name)?),
+                    dioxus::dioxus_core::AttributeValue::listener(move |e: dioxus::dioxus_core::Event<$data>| {
+                        _f(e).spawn();
                     }),
                     None,
                     false,
-                )
+                ).into()
             }
         )*
     };
 
+    (@name $name:ident $js_name:literal) => {
+        $js_name
+    };
+    (@name $name:ident) => {
+        stringify!($name)
+    };
 }
+
 use impl_event;

@@ -1,5 +1,5 @@
 use crate::{
-    apply_mutations::apply_mutations,
+    apply_mutations::MutationApplier,
     deferred_system::DeferredSystemRunQueue,
     ecs_hooks::EcsContext,
     events::{bubble_event, EventReaders},
@@ -13,6 +13,7 @@ use bevy::{
     },
     utils::HashMap,
 };
+use replace_with::replace_with_or_abort;
 use std::{any::Any, mem, rc::Rc};
 
 pub fn tick_dioxus_ui(world: &mut World) {
@@ -104,19 +105,17 @@ fn schedule_ui_renders_from_ecs_subscriptions(ui_root: &mut UiRoot, world: &Worl
 }
 
 fn render_ui(root_entity: Entity, ui_root: &mut UiRoot, world: &mut World) {
-    ui_root
-        .virtual_dom
-        .base_scope()
-        .provide_context(EcsContext { world });
+    // TODO: Remove need for the replace_with crate https://github.com/DioxusLabs/dioxus/issues/2164
+    replace_with_or_abort(&mut ui_root.virtual_dom, |virtual_dom| {
+        virtual_dom.with_root_context(EcsContext { world })
+    });
 
     #[cfg(feature = "hot_reload")]
     crate::hot_reload::update_templates(world, &mut ui_root.virtual_dom);
 
     if ui_root.needs_rebuild {
-        let mutations = ui_root.virtual_dom.rebuild();
         world.resource_scope(|world, asset_server: Mut<AssetServer>| {
-            apply_mutations(
-                mutations,
+            let mut mutation_applier = MutationApplier::new(
                 &mut ui_root.element_id_to_bevy_ui_entity,
                 &mut ui_root.bevy_ui_entity_to_element_id,
                 &mut ui_root.templates,
@@ -124,14 +123,13 @@ fn render_ui(root_entity: Entity, ui_root: &mut UiRoot, world: &mut World) {
                 world,
                 &asset_server,
             );
+            ui_root.virtual_dom.rebuild(&mut mutation_applier);
         });
         ui_root.needs_rebuild = false;
     }
 
-    let mutations = ui_root.virtual_dom.render_immediate();
     world.resource_scope(|world, asset_server: Mut<AssetServer>| {
-        apply_mutations(
-            mutations,
+        let mut mutation_applier = MutationApplier::new(
             &mut ui_root.element_id_to_bevy_ui_entity,
             &mut ui_root.bevy_ui_entity_to_element_id,
             &mut ui_root.templates,
@@ -139,5 +137,6 @@ fn render_ui(root_entity: Entity, ui_root: &mut UiRoot, world: &mut World) {
             world,
             &asset_server,
         );
+        ui_root.virtual_dom.render_immediate(&mut mutation_applier);
     });
 }
