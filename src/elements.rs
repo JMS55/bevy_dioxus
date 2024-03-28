@@ -88,8 +88,8 @@ pub mod dioxus_elements {
         pub const NAME_SPACE: Option<&'static str> = NAME_SPACE;
         pub const text: AttributeDescription = ("text", None, false);
         pub const text_direction: AttributeDescription = ("text_direction", None, false);
-        pub const text_multiline_alignment: AttributeDescription =
-            ("text_multiline_alignment", None, false);
+        pub const text_multiline_justification: AttributeDescription =
+            ("text_multiline_justification", None, false);
         pub const text_size: AttributeDescription = ("text_size", None, false);
         pub const text_color: AttributeDescription = ("text_color", None, false);
         node_attributes!();

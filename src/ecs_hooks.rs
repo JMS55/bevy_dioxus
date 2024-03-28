@@ -3,7 +3,7 @@ use bevy::{
     ecs::{
         component::ComponentId,
         event::{Event, EventIterator, Events, ManualEventReader},
-        query::ReadOnlyWorldQuery,
+        query::{QueryFilter, ReadOnlyQueryData},
         system::{Query, Resource, SystemState},
         world::World,
     },
@@ -89,15 +89,15 @@ pub fn use_resource<T: Resource>(cx: &ScopeState) -> &T {
 
 pub fn use_query<Q>(cx: &ScopeState) -> UseQuery<'_, Q, ()>
 where
-    Q: ReadOnlyWorldQuery,
+    Q: ReadOnlyQueryData,
 {
     use_query_filtered(cx)
 }
 
 pub fn use_query_filtered<Q, F>(cx: &ScopeState) -> UseQuery<'_, Q, F>
 where
-    Q: ReadOnlyWorldQuery,
-    F: ReadOnlyWorldQuery,
+    Q: ReadOnlyQueryData,
+    F: QueryFilter,
 {
     let world = EcsContext::get_world(cx);
 
@@ -128,15 +128,15 @@ pub fn use_event_reader<E: Event>(cx: &ScopeState) -> EventIterator<'_, E> {
     event_reader.read(events)
 }
 
-pub struct UseQuery<'a, Q: ReadOnlyWorldQuery + 'static, F: ReadOnlyWorldQuery + 'static> {
+pub struct UseQuery<'a, Q: ReadOnlyQueryData + 'static, F: QueryFilter + 'static> {
     system_state: SystemState<Query<'static, 'static, Q, F>>,
     world_ref: &'a World,
 }
 
 impl<'a, Q, F> UseQuery<'a, Q, F>
 where
-    Q: ReadOnlyWorldQuery,
-    F: ReadOnlyWorldQuery,
+    Q: ReadOnlyQueryData,
+    F: QueryFilter,
 {
     pub fn query(&mut self) -> Query<Q, F> {
         self.system_state.get(self.world_ref)

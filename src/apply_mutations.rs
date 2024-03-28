@@ -4,7 +4,11 @@ use crate::{
 };
 use bevy::{
     asset::AssetServer,
-    ecs::{entity::Entity, system::Command, world::World},
+    ecs::{
+        entity::{Entity, EntityHashMap},
+        system::Command,
+        world::World,
+    },
     hierarchy::{BuildWorldChildren, Children, DespawnRecursive, Parent},
     prelude::default,
     render::{color::Color, view::Visibility},
@@ -15,7 +19,7 @@ use bevy::{
         widget::TextFlags,
         *,
     },
-    utils::{EntityHashMap, HashMap},
+    utils::HashMap,
 };
 use dioxus::core::{
     BorrowedAttributeValue, ElementId, Mutation, Mutations, Template, TemplateAttribute,
@@ -25,7 +29,7 @@ use dioxus::core::{
 pub fn apply_mutations(
     mutations: Mutations,
     element_id_to_bevy_ui_entity: &mut HashMap<ElementId, Entity>,
-    bevy_ui_entity_to_element_id: &mut EntityHashMap<Entity, ElementId>,
+    bevy_ui_entity_to_element_id: &mut EntityHashMap<ElementId>,
     templates: &mut HashMap<String, BevyTemplate>,
     root_entity: Entity,
     world: &mut World,

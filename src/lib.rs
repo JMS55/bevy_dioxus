@@ -20,10 +20,15 @@ use self::{
 };
 use bevy::{
     app::{App, Last, Plugin, PreUpdate},
-    ecs::{bundle::Bundle, component::Component, entity::Entity, schedule::IntoSystemConfigs},
+    ecs::{
+        bundle::Bundle,
+        component::Component,
+        entity::{Entity, EntityHashMap},
+        schedule::IntoSystemConfigs,
+    },
     prelude::Deref,
     ui::{node_bundles::NodeBundle, ui_focus_system},
-    utils::{EntityHashMap, HashMap},
+    utils::HashMap,
 };
 use dioxus::core::{Element, ElementId, Scope, VirtualDom};
 
@@ -80,7 +85,7 @@ struct UiContext {
 struct UiRoot {
     virtual_dom: VirtualDom,
     element_id_to_bevy_ui_entity: HashMap<ElementId, Entity>,
-    bevy_ui_entity_to_element_id: EntityHashMap<Entity, ElementId>,
+    bevy_ui_entity_to_element_id: EntityHashMap<ElementId>,
     templates: HashMap<String, BevyTemplate>,
     needs_rebuild: bool,
 }

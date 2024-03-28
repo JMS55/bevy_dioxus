@@ -2,7 +2,7 @@ use bevy::{
     asset::{AssetPath, AssetServer},
     math::Quat,
     render::{color::Color, view::Visibility},
-    text::{Text, TextAlignment},
+    text::{JustifyText, Text},
     transform::components::Transform,
     ui::*,
 };
@@ -187,14 +187,14 @@ pub fn set_attribute(
         ("text_direction", "right_to_left") if text.is_some() => {
             style.direction = Direction::RightToLeft;
         }
-        ("text_multiline_alignment", "left") if text.is_some() => {
-            text.unwrap().alignment = TextAlignment::Left;
+        ("text_multiline_justification", "left") if text.is_some() => {
+            text.unwrap().justify = JustifyText::Left;
         }
-        ("text_multiline_alignment", "center") if text.is_some() => {
-            text.unwrap().alignment = TextAlignment::Center;
+        ("text_multiline_justification", "center") if text.is_some() => {
+            text.unwrap().justify = JustifyText::Center;
         }
-        ("text_multiline_alignment", "right") if text.is_some() => {
-            text.unwrap().alignment = TextAlignment::Right;
+        ("text_multiline_justification", "right") if text.is_some() => {
+            text.unwrap().justify = JustifyText::Right;
         }
         ("text_size", value) if text.is_some() => {
             text.unwrap().sections[0].style.font_size = parse_f32(value);

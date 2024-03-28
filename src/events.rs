@@ -1,7 +1,7 @@
 use bevy::{
     ecs::{
         component::Component,
-        entity::Entity,
+        entity::{Entity, EntityHashSet},
         event::{Event, EventWriter, Events, ManualEventReader},
         system::{Local, Query, Resource},
         world::World,
@@ -9,7 +9,6 @@ use bevy::{
     hierarchy::Parent,
     prelude::EntityWorldMut,
     ui::RelativeCursorPosition,
-    utils::EntityHashSet,
 };
 use bevy_mod_picking::events::{Click, Down, Out, Over, Pointer, Up};
 use dioxus::core::ScopeState;
@@ -166,12 +165,12 @@ fn bubble_event_helper<T: Component>(target_entity: &mut Entity, world: &World) 
 
 pub fn generate_mouse_enter_leave_events(
     entities: Query<(Entity, &RelativeCursorPosition)>,
-    mut previous_over: Local<EntityHashSet<Entity>>,
-    mut over: Local<EntityHashSet<Entity>>,
+    mut previous_over: Local<EntityHashSet>,
+    mut over: Local<EntityHashSet>,
     mut enter: EventWriter<MouseEnter>,
     mut leave: EventWriter<MouseExit>,
 ) {
-    mem::swap::<EntityHashSet<Entity>>(&mut previous_over, &mut over);
+    mem::swap::<EntityHashSet>(&mut previous_over, &mut over);
 
     over.clear();
     for (entity, relative_cursor_position) in &entities {
