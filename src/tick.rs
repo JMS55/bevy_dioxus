@@ -13,7 +13,6 @@ use bevy::{
     },
     utils::HashMap,
 };
-use replace_with::replace_with_or_abort;
 use std::{any::Any, mem, rc::Rc};
 
 pub fn tick_dioxus_ui(world: &mut World) {
@@ -105,10 +104,9 @@ fn schedule_ui_renders_from_ecs_subscriptions(ui_root: &mut UiRoot, world: &Worl
 }
 
 fn render_ui(root_entity: Entity, ui_root: &mut UiRoot, world: &mut World) {
-    // TODO: Remove need for the replace_with crate https://github.com/DioxusLabs/dioxus/issues/2164
-    replace_with_or_abort(&mut ui_root.virtual_dom, |virtual_dom| {
-        virtual_dom.with_root_context(EcsContext { world })
-    });
+    ui_root
+        .virtual_dom
+        .provide_root_context(EcsContext { world });
 
     #[cfg(feature = "hot_reload")]
     crate::hot_reload::update_templates(world, &mut ui_root.virtual_dom);

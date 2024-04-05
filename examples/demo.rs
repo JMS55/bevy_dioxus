@@ -1,18 +1,10 @@
-use bevy::{log::LogPlugin, prelude::*, reflect::TypeInfo};
+use bevy::{prelude::*, reflect::TypeInfo};
 use bevy_dioxus::{colors::*, prelude::*};
 use bevy_mod_picking::DefaultPickingPlugins;
 
 fn main() {
     App::new()
-        .add_plugins((
-            // Remove LogPlugin configuration once https://github.com/bevyengine/bevy/issues/12758 is fixed
-            DefaultPlugins.set(LogPlugin {
-                filter: "dioxus_core=warn,wgpu=error,naga=warn".to_owned(),
-                ..default()
-            }),
-            DioxusUiPlugin,
-            DefaultPickingPlugins,
-        ))
+        .add_plugins((DefaultPlugins, DioxusUiPlugin, DefaultPickingPlugins))
         .add_systems(Startup, |mut commands: Commands| {
             commands.spawn(DioxusUiBundle {
                 dioxus_ui_root: DioxusUiRoot(Editor),

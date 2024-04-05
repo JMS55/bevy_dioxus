@@ -114,7 +114,7 @@ where
     }
 }
 
-// TODOZ
+// TODO
 // pub fn use_event_reader<'a, E: Event>() -> EventIterator<'a, E> {
 //     // TODO: Register the subscription
 

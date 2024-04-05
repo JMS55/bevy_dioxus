@@ -12,7 +12,6 @@ dioxus = { version = "0.5", default-features = false, features = [
     "macro",
     "signals",
     "hooks",
-    "launch",  # TODO: Remove after https://github.com/DioxusLabs/dioxus/issues/2162 is fixed
 ] }
 dioxus-rsx = { version = "0.5", default-features = false, features = [
     "hot_reload",
@@ -20,7 +19,6 @@ dioxus-rsx = { version = "0.5", default-features = false, features = [
 dioxus-hot-reload = { version = "0.5", default-features = false, features = [
     "custom_file_watcher",
 ], optional = true }
-replace_with = "0.1"
 
 [features]
 hot_reload = ["dioxus/hot-reload", "dioxus-rsx", "dioxus-hot-reload"]
